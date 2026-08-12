@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CompanySource {
+  MANUAL
+  LINKEDIN_EXPORT
+}
+
+enum ContactStatus {
+  NOT_CONTACTED
+  HR_IDENTIFIED
+  HR_APPROVED
+  CONNECTION_READY
+  CONNECTION_REQUESTED
+  CONNECTED
+  FOLLOW_UP_READY
+  MESSAGE_SENT
+  RESPONDED
+  INTERESTED
+  CV_REQUESTED
+  CV_SENT
+  INTERVIEW
+  OFFER
+  REJECTED
+  CLOSED
+}
+
+enum InteractionType {
+  CONNECTION_REQUEST
+  CONNECTION_ACCEPTED
+  MESSAGE_SENT
+  MESSAGE_RECEIVED
+  NOTE
+}
+
+model User {
+  id                  String   @id @default(cuid())
+  name                String?
+  email               String?
+  bio                 String?
+  experience          String?
+  skills              String[] @default([])
+  targetRoles         String[] @default([])
+  targetLocations     String[] @default([])
+  projects            String[] @default([])
+  preferredIndustries String[] @default([])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Company {
+  id               String           @id @default(cuid())
+  name             String
+  normalizedName   String           @unique
+  website          String?
+  linkedinUrl      String?
+  industry         String?
+  description      String?
+  location         String?
+  companySize      String?
+  followedOn       DateTime?
+  relevanceScore   Int?
+  matchReason      String?
+  researchSummary  String?
+  technologies     String[]         @default([])
+  hiringSignals    String[]         @default([])
+  recommendedRoles String[]         @default([])
+  source           CompanySource    @default(MANUAL)
+  contacts         Contact[]
+  jobOpportunities JobOpportunity[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([relevanceScore])
+  @@index([source])
+}
+
+model Contact {
+  id                    String          @id @default(cuid())
+  companyId             String
+  company               Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                  String
+  role                  String
+  linkedinUrl           String?
+  relevanceScore        Int?
+  relevanceReason       String?
+  whyContact            String?
+  recommendedOutreachAngle String?
+  status                ContactStatus   @default(HR_IDENTIFIED)
+  connectionNote        String?
+  followUpMessage       String?
+  connectionRequestedAt DateTime?
+  connectedAt           DateTime?
+  lastInteractionAt     DateTime?
+  nextAction            String?
+  nextActionDate        DateTime?
+  priority              Int             @default(50)
+  interactions          Interaction[]
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([priority])
+}
+
+model Interaction {
+  id         String          @id @default(cuid())
+  contactId  String
+  contact    Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  type       InteractionType
+  content    String
+  aiAnalysis String?
+  intent     String?
+  sentiment  String?
+  createdAt  DateTime        @default(now())
+
+  @@index([contactId])
+  @@index([createdAt])
+}
+
+model JobOpportunity {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  url            String?
+  location       String?
+  requiredSkills String[] @default([])
+  matchScore     Int?
+  matchReason    String?
+  createdAt      DateTime @default(now())
+
+  @@index([companyId])
+  @@index([matchScore])
+}

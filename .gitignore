@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+backend/data/dev-store.json
+backend/data/*.log
+backend/prisma/migrations/
