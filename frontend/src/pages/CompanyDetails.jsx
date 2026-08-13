@@ -8,9 +8,14 @@ import {
   LinearProgress,
   Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   Typography
 } from "@mui/material";
-import { ExternalLink, Sparkles } from "lucide-react";
+import { ExternalLink, Search } from "lucide-react";
 import ContactDialog from "../components/ContactDialog.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import StatusChip from "../components/StatusChip.jsx";
@@ -61,37 +66,81 @@ export default function CompanyDetails() {
 
   return (
     <>
-      <PageHeader title={company?.name || "Company"} eyebrow="Company details">
-        <Button variant="outlined" startIcon={<Sparkles size={18} />} onClick={research} disabled={busy}>
-          Research
-        </Button>
-        {company?.website ? (
-          <Button component="a" href={company.website} target="_blank" rel="noreferrer" startIcon={<ExternalLink size={18} />}>
-            Website
+      <PageHeader
+        title={company?.name || "Company"}
+        subtitle={`${company?.industry || "Industry pending"} · ${company?.location || "Location not set"}`}
+      >
+        {company?.linkedinUrl || company?.website ? (
+          <Button
+            component="a"
+            href={company.linkedinUrl || company.website}
+            target="_blank"
+            rel="noreferrer"
+            variant="outlined"
+            startIcon={<ExternalLink size={16} />}
+          >
+            Open LinkedIn
           </Button>
         ) : null}
+        <Button variant="outlined" startIcon={<Search size={16} />} onClick={research} disabled={busy}>
+          Research Company
+        </Button>
         <ContactDialog companies={companies} defaultCompanyId={id} onCreated={load} />
       </PageHeader>
 
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
 
       {company ? (
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "0.8fr 1.2fr" }, gap: 2.5 }}>
-          <Stack spacing={2.5}>
-            <Paper variant="outlined" sx={{ p: 2.4, borderColor: "#dde7e3" }}>
-              <Stack spacing={1.8}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography className="section-title">Match score</Typography>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "1fr 0.72fr" }, gap: 3 }}>
+          <Paper variant="outlined" sx={{ borderColor: "divider", p: 2.2 }}>
+            <Stack spacing={2.2}>
+              <Box>
+                <Typography className="section-title" sx={{ mb: 0.8 }}>
+                  Company overview
+                </Typography>
+                <Typography>
+                  {company.researchSummary || company.description || "Run company research to generate a focused overview."}
+                </Typography>
+              </Box>
+
+              <Divider />
+
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2 }}>
+                <Box>
+                  <Typography className="section-title" sx={{ mb: 0.7 }}>
+                    Match
+                  </Typography>
                   <span className="score-pill">{company.relevanceScore ? `${company.relevanceScore}%` : "New"}</span>
-                </Stack>
-                <Typography variant="h2">{company.industry || "Industry pending"}</Typography>
-                <Typography color="text.secondary">{company.location || "Location not set"}</Typography>
-                <Divider />
+                </Box>
+                <Box>
+                  <Typography className="section-title" sx={{ mb: 0.7 }}>
+                    Followed
+                  </Typography>
+                  <Typography>{formatDate(company.followedOn)}</Typography>
+                </Box>
+                <Box>
+                  <Typography className="section-title" sx={{ mb: 0.7 }}>
+                    Source
+                  </Typography>
+                  <Typography>{company.source}</Typography>
+                </Box>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Typography className="section-title" sx={{ mb: 0.8 }}>
+                  Why this company?
+                </Typography>
+                <Typography>{company.matchReason || "No match reason yet."}</Typography>
+              </Box>
+
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.2 }}>
                 <Box>
                   <Typography className="section-title" sx={{ mb: 0.8 }}>
-                    Why this company?
+                    Hiring signals
                   </Typography>
-                  <Typography>{company.matchReason || company.researchSummary || "Run AI research to evaluate this company."}</Typography>
+                  <Typography>{listText(company.hiringSignals)}</Typography>
                 </Box>
                 <Box>
                   <Typography className="section-title" sx={{ mb: 0.8 }}>
@@ -101,48 +150,67 @@ export default function CompanyDetails() {
                 </Box>
                 <Box>
                   <Typography className="section-title" sx={{ mb: 0.8 }}>
-                    Hiring signals
+                    Relevant roles
                   </Typography>
-                  <Typography>{listText(company.hiringSignals)}</Typography>
+                  <Typography>{listText(company.recommendedRoles)}</Typography>
                 </Box>
-                <Typography color="text.secondary" fontSize="0.88rem">
-                  Source: {company.source} | Followed: {formatDate(company.followedOn)}
-                </Typography>
-              </Stack>
-            </Paper>
-          </Stack>
-
-          <Paper variant="outlined" sx={{ p: 2.4, borderColor: "#dde7e3" }}>
-            <Stack spacing={1.8}>
-              <Typography variant="h2">Potential HRs</Typography>
-              {company.contacts?.length ? (
-                company.contacts.map((contact) => (
-                  <Paper key={contact.id} variant="outlined" sx={{ p: 1.8, borderColor: "#e2e9e6" }}>
-                    <Stack
-                      direction={{ xs: "column", sm: "row" }}
-                      spacing={1.2}
-                      justifyContent="space-between"
-                      alignItems={{ sm: "center" }}
-                    >
-                      <Box>
-                        <Typography fontWeight={850}>{contact.name}</Typography>
-                        <Typography color="text.secondary">{contact.role}</Typography>
-                      </Box>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <StatusChip status={contact.status} />
-                        <span className="score-pill">{contact.relevanceScore ? `${contact.relevanceScore}%` : "New"}</span>
-                        <Button component={Link} to={`/contacts/${contact.id}`} size="small" variant="outlined">
-                          Review
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  </Paper>
-                ))
-              ) : (
-                <Typography color="text.secondary">No contacts yet. Add HR or recruiter contacts manually for V1.</Typography>
-              )}
+              </Box>
             </Stack>
           </Paper>
+
+          <Box>
+            <Typography variant="h2" sx={{ mb: 1.2 }}>
+              Potential contacts
+            </Typography>
+            <Box className="table-wrap">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Contact</TableCell>
+                    <TableCell>Match</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="right">Action</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {company.contacts?.length ? (
+                    company.contacts.map((contact) => (
+                      <TableRow key={contact.id} hover>
+                        <TableCell>
+                          <Typography sx={{ fontWeight: 740 }}>{contact.name}</Typography>
+                          <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>
+                            {contact.role}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <span className="score-pill">{contact.relevanceScore ? `${contact.relevanceScore}%` : "New"}</span>
+                        </TableCell>
+                        <TableCell>
+                          <StatusChip status={contact.status} />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Button component={Link} to={`/contacts/${contact.id}`} variant="outlined">
+                            Review
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4}>
+                        <Box sx={{ py: 4, textAlign: "center" }}>
+                          <Typography sx={{ fontWeight: 720 }}>No contacts yet.</Typography>
+                          <Typography color="text.secondary" sx={{ mt: 0.4 }}>
+                            Add HR or recruiter contacts manually for V1.
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
+          </Box>
         </Box>
       ) : null}
     </>

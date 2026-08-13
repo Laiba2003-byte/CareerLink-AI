@@ -9,6 +9,7 @@ html {
 body {
   min-height: 100%;
   margin: 0;
+  color: #202124;
 }
 
 a {
@@ -18,21 +19,46 @@ a {
 
 .score-pill {
   align-items: center;
-  border: 1px solid #d7e8e4;
-  border-radius: 8px;
-  color: #0f766e;
+  background: #f4f7fb;
+  border: 1px solid #d7dfeb;
+  border-radius: 5px;
+  color: #2f4a70;
   display: inline-flex;
-  font-size: 0.85rem;
-  font-weight: 800;
-  min-width: 68px;
-  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 720;
+  min-width: 56px;
+  padding: 3px 7px;
   justify-content: center;
 }
 
 .section-title {
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  color: #686c70;
+  font-size: 0.75rem;
+  font-weight: 760;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #6c7672;
+}
+
+.muted-rule {
+  border: 0;
+  border-top: 1px solid #e6e2db;
+  margin: 0;
+}
+
+.priority-pill {
+  align-items: center;
+  border: 1px solid #e0d8c7;
+  border-radius: 5px;
+  color: #7b5a1f;
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 3px 7px;
+}
+
+.table-wrap {
+  border: 1px solid #dedbd4;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
 }

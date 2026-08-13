@@ -3,108 +3,180 @@ import { Link } from "react-router-dom";
 import {
   Alert,
   Box,
-  LinearProgress,
-  List,
-  ListItemButton,
-  ListItemText,
+  Button,
+  Divider,
   Paper,
   Stack,
   Typography
 } from "@mui/material";
-import { Building2, CheckCircle2, Clock3, Flame, Send, UsersRound } from "lucide-react";
+import ImportDialog from "../components/ImportDialog.jsx";
 import MetricCard from "../components/MetricCard.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import StatusChip from "../components/StatusChip.jsx";
 import { api } from "../services/api.js";
+import { formatDate } from "../utils/format.js";
 import { labelStatus } from "../utils/status.js";
+
+function priorityLabel(priority = 50) {
+  if (priority >= 85) return "High priority";
+  if (priority >= 65) return "Medium";
+  return "Normal";
+}
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [contacts, setContacts] = useState([]);
   const [error, setError] = useState("");
 
+  async function load() {
+    try {
+      const [dashboardResponse, profileResponse, contactsResponse] = await Promise.all([
+        api.get("/dashboard"),
+        api.get("/profile"),
+        api.get("/contacts")
+      ]);
+      setData(dashboardResponse.data);
+      setProfile(profileResponse.data);
+      setContacts(contactsResponse.data);
+      setError("");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   useEffect(() => {
-    api
-      .get("/dashboard")
-      .then((response) => setData(response.data))
-      .catch((err) => setError(err.message));
+    load();
   }, []);
 
-  const maxPipeline = useMemo(() => {
-    const counts = data?.pipeline?.map((item) => item.count) || [1];
-    return Math.max(1, ...counts);
-  }, [data]);
-
   const metrics = data?.metrics || {};
+  const actionContacts = useMemo(() => {
+    const ids = new Set((data?.todaysActions || []).map((item) => item.id));
+    return contacts
+      .filter((contact) => ids.has(contact.id))
+      .sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0))
+      .slice(0, 6);
+  }, [contacts, data]);
 
   return (
     <>
-      <PageHeader title="Dashboard" eyebrow="CareerLink AI" />
+      <PageHeader
+        title={`Good morning, ${profile?.name?.trim() || "Laiba"}`}
+        subtitle="Here's what needs your attention."
+      >
+        <ImportDialog onImported={load} />
+      </PageHeader>
+
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
 
-      <Box
-        sx={{
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-          mb: 3
-        }}
-      >
-        <MetricCard label="Companies" value={metrics.companies} icon={Building2} />
-        <MetricCard label="High Priority" value={metrics.highPriority} icon={Flame} tone="#c97913" />
-        <MetricCard label="HRs" value={metrics.contacts} icon={UsersRound} tone="#7c3aed" />
-        <MetricCard label="Connected" value={metrics.connected} icon={CheckCircle2} tone="#138a43" />
-        <MetricCard label="Opportunities" value={metrics.opportunities} icon={Send} tone="#b45309" />
-        <MetricCard label="Pending" value={metrics.pendingRequests} icon={Clock3} tone="#2563eb" />
-      </Box>
+      <Paper variant="outlined" sx={{ borderColor: "divider", mb: 2.5, px: { xs: 1.5, sm: 0 } }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "repeat(2, minmax(0, 1fr))",
+              sm: "repeat(3, minmax(0, 1fr))",
+              lg: "repeat(6, minmax(0, 1fr))"
+            }
+          }}
+        >
+          <MetricCard label="Companies" value={metrics.companies} />
+          <MetricCard label="Potential HRs" value={metrics.contacts} />
+          <MetricCard label="Connections" value={metrics.connected} />
+          <MetricCard label="Opportunities" value={metrics.opportunities} />
+          <MetricCard label="High Match" value={metrics.highPriority} />
+          <MetricCard label="Pending" value={metrics.pendingRequests} />
+        </Box>
+      </Paper>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1.05fr 0.95fr" }, gap: 2.5 }}>
-        <Paper variant="outlined" sx={{ p: 2.4, borderColor: "#dde7e3" }}>
-          <Stack spacing={1.5}>
-            <Typography variant="h2">Today's actions</Typography>
-            {data?.todaysActions?.length ? (
-              <List disablePadding>
-                {data.todaysActions.map((item) => (
-                  <ListItemButton
-                    key={item.id}
-                    component={Link}
-                    to={`/contacts/${item.id}`}
-                    sx={{ borderRadius: 1, px: 1.2 }}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "1.35fr 0.65fr" }, gap: 2.5 }}>
+        <Box>
+          <Stack direction="row" alignItems="flex-end" justifyContent="space-between" sx={{ mb: 1.2 }}>
+            <Box>
+              <Typography variant="h2">Today's actions</Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.25 }}>
+                People and opportunities that need your attention.
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Paper variant="outlined" sx={{ borderColor: "divider" }}>
+            {actionContacts.length ? (
+              actionContacts.map((contact, index) => (
+                <Box key={contact.id}>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", md: "1fr 180px 90px" },
+                      gap: 2,
+                      alignItems: "center",
+                      px: 2,
+                      py: 1.6,
+                      "&:hover": { bgcolor: "#fbfaf8" }
+                    }}
                   >
-                    <ListItemText
-                      primary={item.label}
-                      secondary={`Priority ${item.priority || 50}`}
-                      primaryTypographyProps={{ fontWeight: 800 }}
-                    />
-                    <StatusChip status={item.status} />
-                  </ListItemButton>
-                ))}
-              </List>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 760 }}>{contact.name}</Typography>
+                      <Typography color="text.secondary" sx={{ fontSize: "0.82rem" }}>
+                        {contact.role} · {contact.company?.name || "Unknown company"}
+                      </Typography>
+                      <Typography sx={{ mt: 1 }}>{contact.nextAction || "Review next step"}</Typography>
+                      <Typography color="text.secondary" sx={{ fontSize: "0.78rem" }}>
+                        Last interaction: {formatDate(contact.lastInteractionAt)}
+                      </Typography>
+                    </Box>
+                    <Stack spacing={0.7} alignItems={{ xs: "flex-start", md: "flex-end" }}>
+                      <span className="priority-pill">{priorityLabel(contact.priority)}</span>
+                      <StatusChip status={contact.status} />
+                    </Stack>
+                    <Button component={Link} to={`/contacts/${contact.id}`} variant="outlined">
+                      Review
+                    </Button>
+                  </Box>
+                  {index < actionContacts.length - 1 ? <Divider /> : null}
+                </Box>
+              ))
             ) : (
-              <Typography color="text.secondary">No urgent actions. Import companies or add contacts to build the pipeline.</Typography>
-            )}
-          </Stack>
-        </Paper>
-
-        <Paper variant="outlined" sx={{ p: 2.4, borderColor: "#dde7e3" }}>
-          <Stack spacing={1.6}>
-            <Typography variant="h2">Networking pipeline</Typography>
-            {(data?.pipeline || []).map((item) => (
-              <Box key={item.status}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.6 }}>
-                  <Typography fontWeight={800}>{labelStatus(item.status)}</Typography>
-                  <Typography color="text.secondary" fontWeight={800}>
-                    {item.count}
-                  </Typography>
-                </Stack>
-                <LinearProgress
-                  variant="determinate"
-                  value={(item.count / maxPipeline) * 100}
-                  sx={{ height: 8, borderRadius: 1, bgcolor: "#e9eeec" }}
-                />
+              <Box sx={{ p: 2.5 }}>
+                <Typography sx={{ fontWeight: 720 }}>No actions waiting.</Typography>
+                <Typography color="text.secondary" sx={{ mt: 0.4 }}>
+                  Add contacts or import LinkedIn companies to start building your networking pipeline.
+                </Typography>
               </Box>
-            ))}
+            )}
+          </Paper>
+        </Box>
+
+        <Box>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.2 }}>
+            <Typography variant="h2">Networking pipeline</Typography>
+            <Button component={Link} to="/pipeline" variant="text">
+              View all
+            </Button>
           </Stack>
-        </Paper>
+          <Paper variant="outlined" sx={{ borderColor: "divider", p: 1 }}>
+            <Box sx={{ display: "grid", gap: 0.5 }}>
+              {(data?.pipeline || []).map((item) => (
+                <Button
+                  key={item.status}
+                  component={Link}
+                  to={`/pipeline?status=${item.status}`}
+                  variant="text"
+                  sx={{
+                    justifyContent: "space-between",
+                    color: "text.primary",
+                    px: 1,
+                    py: 0.8,
+                    borderRadius: 1
+                  }}
+                >
+                  <span>{labelStatus(item.status)}</span>
+                  <span>{item.count}</span>
+                </Button>
+              ))}
+            </Box>
+          </Paper>
+        </Box>
       </Box>
     </>
   );

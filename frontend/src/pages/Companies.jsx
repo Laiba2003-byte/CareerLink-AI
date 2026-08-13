@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Alert,
@@ -6,6 +6,7 @@ import {
   Button,
   Chip,
   InputAdornment,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -21,7 +22,7 @@ import CompanyDialog from "../components/CompanyDialog.jsx";
 import ImportDialog from "../components/ImportDialog.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import { api } from "../services/api.js";
-import { formatDate, listText } from "../utils/format.js";
+import { formatDate } from "../utils/format.js";
 
 const filters = [
   { value: "all", label: "All" },
@@ -30,21 +31,32 @@ const filters = [
   { value: "recent", label: "Recently Followed" }
 ];
 
+function researchStatus(company) {
+  if (company.researchSummary || company.relevanceScore) return "Research ready";
+  return "Needs research";
+}
+
 export default function Companies() {
   const [companies, setCompanies] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState("match");
   const [error, setError] = useState("");
 
   async function load() {
     try {
-      const response = await api.get("/companies", {
-        params: {
-          search,
-          filter: filter === "all" ? undefined : filter
-        }
-      });
-      setCompanies(response.data);
+      const [companiesResponse, contactsResponse] = await Promise.all([
+        api.get("/companies", {
+          params: {
+            search,
+            filter: filter === "all" ? undefined : filter
+          }
+        }),
+        api.get("/contacts")
+      ]);
+      setCompanies(companiesResponse.data);
+      setContacts(contactsResponse.data);
       setError("");
     } catch (err) {
       setError(err.message);
@@ -56,90 +68,121 @@ export default function Companies() {
     return () => clearTimeout(id);
   }, [search, filter]);
 
+  const contactCounts = useMemo(() => {
+    return contacts.reduce((acc, contact) => {
+      if (contact.companyId) acc[contact.companyId] = (acc[contact.companyId] || 0) + 1;
+      return acc;
+    }, {});
+  }, [contacts]);
+
+  const sortedCompanies = useMemo(() => {
+    const next = [...companies];
+    if (sort === "name") next.sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === "followed") next.sort((a, b) => new Date(b.followedOn || 0) - new Date(a.followedOn || 0));
+    if (sort === "match") next.sort((a, b) => Number(b.relevanceScore || 0) - Number(a.relevanceScore || 0));
+    return next;
+  }, [companies, sort]);
+
   return (
     <>
-      <PageHeader title="Companies" eyebrow={`${companies.length} organizations`}>
+      <PageHeader title="Companies" subtitle={`${companies.length} companies from LinkedIn`}>
         <ImportDialog onImported={load} />
         <CompanyDialog onCreated={load} />
       </PageHeader>
 
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
 
-      <Paper variant="outlined" sx={{ p: 2, borderColor: "#dde7e3", mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
+      <Paper variant="outlined" sx={{ p: 1.5, borderColor: "divider", mb: 1.5 }}>
+        <Stack direction={{ xs: "column", lg: "row" }} spacing={1} alignItems={{ lg: "center" }}>
           <TextField
             fullWidth
-            placeholder="Search companies"
+            placeholder="Search companies..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Search size={18} />
+                  <Search size={16} />
                 </InputAdornment>
               )
             }}
           />
-          <Stack direction="row" spacing={1} flexWrap="wrap">
+          <TextField select label="Filter" value={filter} onChange={(event) => setFilter(event.target.value)} sx={{ minWidth: 170 }}>
             {filters.map((item) => (
-              <Chip
-                key={item.value}
-                label={item.label}
-                color={filter === item.value ? "primary" : "default"}
-                variant={filter === item.value ? "filled" : "outlined"}
-                onClick={() => setFilter(item.value)}
-              />
+              <MenuItem key={item.value} value={item.value}>
+                {item.label}
+              </MenuItem>
             ))}
-          </Stack>
+          </TextField>
+          <TextField select label="Sort" value={sort} onChange={(event) => setSort(event.target.value)} sx={{ minWidth: 150 }}>
+            <MenuItem value="match">Match</MenuItem>
+            <MenuItem value="followed">Followed</MenuItem>
+            <MenuItem value="name">Name</MenuItem>
+          </TextField>
         </Stack>
       </Paper>
 
-      <Paper variant="outlined" sx={{ borderColor: "#dde7e3", overflow: "hidden" }}>
+      <Box className="table-wrap">
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>Company</TableCell>
-              <TableCell>Match</TableCell>
-              <TableCell>Hiring signal</TableCell>
               <TableCell>Followed</TableCell>
-              <TableCell>Research</TableCell>
-              <TableCell align="right">Open</TableCell>
+              <TableCell>Match</TableCell>
+              <TableCell>Hiring</TableCell>
+              <TableCell>Contacts</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Action</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {companies.map((company) => (
+            {sortedCompanies.map((company) => (
               <TableRow key={company.id} hover>
                 <TableCell>
-                  <Typography fontWeight={850}>{company.name}</Typography>
-                  <Typography color="text.secondary" fontSize="0.88rem">
+                  <Typography sx={{ fontWeight: 740 }}>{company.name}</Typography>
+                  <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>
                     {company.industry || company.location || "Company profile pending"}
                   </Typography>
                 </TableCell>
+                <TableCell>{formatDate(company.followedOn)}</TableCell>
                 <TableCell>
                   <span className="score-pill">{company.relevanceScore ? `${company.relevanceScore}%` : "New"}</span>
                 </TableCell>
-                <TableCell>{company.hiringSignals?.length ? "Yes" : "Unknown"}</TableCell>
-                <TableCell>{formatDate(company.followedOn)}</TableCell>
-                <TableCell>{listText(company.technologies)}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={company.hiringSignals?.length ? "Hiring" : "Unknown"}
+                    variant="outlined"
+                    sx={{
+                      bgcolor: company.hiringSignals?.length ? "#f4faf6" : "#f7f6f3",
+                      borderColor: company.hiringSignals?.length ? "#d9e6dd" : "#d8d5cf",
+                      color: company.hiringSignals?.length ? "#2f6f48" : "text.secondary"
+                    }}
+                  />
+                </TableCell>
+                <TableCell>{contactCounts[company.id] || 0} contacts</TableCell>
+                <TableCell>{researchStatus(company)}</TableCell>
                 <TableCell align="right">
-                  <Button component={Link} to={`/companies/${company.id}`} size="small" variant="outlined">
+                  <Button component={Link} to={`/companies/${company.id}`} variant="outlined">
                     Review
                   </Button>
                 </TableCell>
               </TableRow>
             ))}
-            {!companies.length ? (
+            {!sortedCompanies.length ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={7}>
                   <Box sx={{ py: 5, textAlign: "center" }}>
-                    <Typography color="text.secondary">No companies found.</Typography>
+                    <Typography sx={{ fontWeight: 720 }}>No companies found.</Typography>
+                    <Typography color="text.secondary" sx={{ mt: 0.4 }}>
+                      Import your LinkedIn Company Follows.csv or add a company manually.
+                    </Typography>
                   </Box>
                 </TableCell>
               </TableRow>
             ) : null}
           </TableBody>
         </Table>
-      </Paper>
+      </Box>
     </>
   );
 }

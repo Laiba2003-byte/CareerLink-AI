@@ -1,28 +1,19 @@
-import { Paper, Stack, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
-export default function MetricCard({ label, value, icon: Icon, tone = "#0f766e" }) {
+export default function MetricCard({ label, value }) {
   return (
-    <Paper
-      variant="outlined"
+    <Box
       sx={{
-        p: 2.2,
-        borderColor: "#dde7e3",
-        display: "flex",
-        minHeight: 118,
-        alignItems: "space-between"
+        px: { xs: 0, sm: 2 },
+        py: 1.2,
+        borderRight: { sm: "1px solid #e6e2db" },
+        "&:last-of-type": { borderRight: 0 }
       }}
     >
-      <Stack spacing={1.5} sx={{ width: "100%" }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Typography color="text.secondary" fontWeight={800} fontSize="0.88rem">
-            {label}
-          </Typography>
-          {Icon ? <Icon size={20} color={tone} /> : null}
-        </Stack>
-        <Typography variant="h1" sx={{ fontSize: "2rem" }}>
-          {value ?? 0}
-        </Typography>
-      </Stack>
-    </Paper>
+      <Typography color="text.secondary" sx={{ fontSize: "0.76rem", fontWeight: 720, mb: 0.4 }}>
+        {label}
+      </Typography>
+      <Typography sx={{ fontSize: "1.45rem", fontWeight: 760, lineHeight: 1.15 }}>{value ?? 0}</Typography>
+    </Box>
   );
 }

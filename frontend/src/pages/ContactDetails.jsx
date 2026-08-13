@@ -11,7 +11,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { CheckCircle2, ExternalLink, RefreshCw, Send, Sparkles } from "lucide-react";
+import { CheckCircle2, ExternalLink, RefreshCw, Search, Send } from "lucide-react";
 import ConfirmButton from "../components/ConfirmButton.jsx";
 import MessagePanel from "../components/MessagePanel.jsx";
 import PageHeader from "../components/PageHeader.jsx";
@@ -90,8 +90,12 @@ export default function ContactDetails() {
 
   return (
     <>
-      <PageHeader title={contact?.name || "Contact"} eyebrow={contact?.company?.name || "Contact details"}>
-        <Button component="a" href={linkedinUrl} target="_blank" rel="noreferrer" startIcon={<ExternalLink size={18} />}>
+      <PageHeader
+        title={contact?.name || "Contact"}
+        subtitle={`${contact?.role || ""} · ${contact?.company?.name || "Unknown company"}`}
+      >
+        {contact ? <StatusChip status={contact.status} /> : null}
+        <Button component="a" href={linkedinUrl} target="_blank" rel="noreferrer" variant="outlined" startIcon={<ExternalLink size={16} />}>
           Open LinkedIn
         </Button>
       </PageHeader>
@@ -99,39 +103,102 @@ export default function ContactDetails() {
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
 
       {contact ? (
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "0.82fr 1.18fr" }, gap: 2.5 }}>
-          <Stack spacing={2.5}>
-            <Paper variant="outlined" sx={{ p: 2.4, borderColor: "#dde7e3" }}>
-              <Stack spacing={1.7}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography className="section-title">Status</Typography>
-                  <StatusChip status={contact.status} />
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "1.3fr 0.7fr" }, gap: 2.5 }}>
+          <Stack spacing={2}>
+            <Timeline interactions={contact.interactions || []} />
+
+            <Paper variant="outlined" sx={{ borderColor: "divider", p: 2 }}>
+              <Stack spacing={1.3}>
+                <Typography variant="h2">Record recruiter response</Typography>
+                <TextField
+                  value={responseText}
+                  onChange={(event) => setResponseText(event.target.value)}
+                  placeholder="Paste the HR or recruiter response"
+                  multiline
+                  minRows={4}
+                  fullWidth
+                />
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <ConfirmButton
+                    title="Record and analyze response"
+                    description="This saves the response to the timeline and updates the recommended next action."
+                    disabled={!responseText.trim()}
+                    onConfirm={() =>
+                      runAction("response", async () => {
+                        const response = await api.post(`/contacts/${id}/analyze-response`, {
+                          content: responseText,
+                          confirm: true
+                        });
+                        setAnalysis(response.data.analysis);
+                        setResponseText("");
+                      })
+                    }
+                  >
+                    Analyze response
+                  </ConfirmButton>
+                  {analysis ? (
+                    <Typography color="text.secondary" sx={{ fontSize: "0.82rem" }}>
+                      {analysis.recommendedAction}: {analysis.reason}
+                    </Typography>
+                  ) : null}
                 </Stack>
+              </Stack>
+            </Paper>
+          </Stack>
+
+          <Stack spacing={1.5}>
+            <Paper variant="outlined" sx={{ borderColor: "divider", p: 1.7 }}>
+              <Stack spacing={1.2}>
+                <Typography className="section-title">Next action</Typography>
+                <Typography variant="h2">{recommendation?.label || contact.nextAction || "Review next step"}</Typography>
+                <span className="priority-pill">{contact.priority >= 85 ? "High priority" : "Normal priority"}</span>
+                <Typography color="text.secondary">
+                  {recommendation?.reason ||
+                    "Use the current relationship state, profile fit, and timeline before deciding what to do next."}
+                </Typography>
+                <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>
+                  Next action date: {formatDate(contact.nextActionDate)}
+                </Typography>
+              </Stack>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ borderColor: "divider", p: 1.7 }}>
+              <Stack spacing={1.1}>
+                <Typography className="section-title">Contact</Typography>
                 <Box>
-                  <Typography variant="h2">{contact.role}</Typography>
+                  <Typography sx={{ fontWeight: 740 }}>{contact.name}</Typography>
+                  <Typography color="text.secondary">{contact.role}</Typography>
                   <Typography color="text.secondary">{contact.company?.name}</Typography>
                 </Box>
                 <Divider />
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography color="text.secondary">Relevance</Typography>
+                  <span className="score-pill">{contact.relevanceScore ? `${contact.relevanceScore}%` : "New"}</span>
+                </Stack>
                 <Box>
-                  <Typography className="section-title" sx={{ mb: 0.8 }}>
+                  <Typography className="section-title" sx={{ mb: 0.6 }}>
                     Why contact?
                   </Typography>
-                  <Typography>{contact.whyContact || contact.relevanceReason || "Run contact analysis to evaluate this person."}</Typography>
+                  <Typography color="text.secondary">
+                    {contact.whyContact || contact.relevanceReason || "Run contact analysis to evaluate this person."}
+                  </Typography>
                 </Box>
                 <Box>
-                  <Typography className="section-title" sx={{ mb: 0.8 }}>
+                  <Typography className="section-title" sx={{ mb: 0.6 }}>
                     Outreach angle
                   </Typography>
-                  <Typography>{contact.recommendedOutreachAngle || "No outreach strategy generated yet."}</Typography>
+                  <Typography color="text.secondary">
+                    {contact.recommendedOutreachAngle || "No outreach strategy generated yet."}
+                  </Typography>
                 </Box>
-                <Stack direction="row" spacing={1} flexWrap="wrap">
+                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
                   <Button
                     variant="outlined"
-                    startIcon={<Sparkles size={18} />}
+                    startIcon={<Search size={16} />}
                     disabled={busy === "analyze"}
                     onClick={() => runAction("analyze", () => api.post(`/contacts/${id}/analyze`))}
                   >
-                    Analyze Contact
+                    Analyze
                   </Button>
                   <ConfirmButton
                     variant="contained"
@@ -139,34 +206,24 @@ export default function ContactDetails() {
                     description="This moves the contact into the approved workflow for connection note generation."
                     disabled={contact.status !== "HR_IDENTIFIED"}
                     onConfirm={() => runAction("approve", () => transition("HR_APPROVED"))}
-                    startIcon={<CheckCircle2 size={18} />}
+                    startIcon={<CheckCircle2 size={16} />}
                   >
-                    Approve HR
+                    Approve
                   </ConfirmButton>
                 </Stack>
               </Stack>
             </Paper>
 
-            <Paper variant="outlined" sx={{ p: 2.4, borderColor: "#dde7e3" }}>
-              <Stack spacing={1.4}>
-                <Typography className="section-title">AI Recommendation</Typography>
-                <Typography variant="h2">{recommendation?.label || contact.nextAction || "Review next action"}</Typography>
-                <Typography color="text.secondary">{recommendation?.reason || `Priority ${contact.priority || 50}`}</Typography>
-                <Typography fontWeight={850}>Next action date: {formatDate(contact.nextActionDate)}</Typography>
-              </Stack>
-            </Paper>
-          </Stack>
-
-          <Stack spacing={2.5}>
             <MessagePanel
-              title="Connection message"
+              title="Connection request"
+              context={`${contact.name} · ${contact.company?.name || "Unknown company"}`}
               value={connectionNote}
               onChange={setConnectionNote}
               placeholder="Generate or draft a concise LinkedIn connection note."
             >
               <Button
                 variant="outlined"
-                startIcon={<RefreshCw size={18} />}
+                startIcon={<RefreshCw size={16} />}
                 disabled={busy === "connection"}
                 onClick={() => runAction("connection", () => api.post(`/contacts/${id}/generate-connection`))}
               >
@@ -177,7 +234,7 @@ export default function ContactDetails() {
                 disabled={busy === "save-note"}
                 onClick={() => runAction("save-note", () => patchContact({ connectionNote }))}
               >
-                Save Edits
+                Save
               </Button>
               <ConfirmButton
                 title="Approve connection note"
@@ -189,7 +246,6 @@ export default function ContactDetails() {
                     await transition("CONNECTION_READY");
                   })
                 }
-                startIcon={<CheckCircle2 size={18} />}
               >
                 Approve
               </ConfirmButton>
@@ -198,35 +254,34 @@ export default function ContactDetails() {
                 description="Confirm only after you manually sent the LinkedIn connection request."
                 disabled={!canSendConnection}
                 onConfirm={() => runAction("sent", () => transition("CONNECTION_REQUESTED"))}
-                startIcon={<Send size={18} />}
+                startIcon={<Send size={16} />}
               >
-                Mark Sent
+                Mark sent
               </ConfirmButton>
             </MessagePanel>
 
-            <Paper variant="outlined" sx={{ p: 2.2, borderColor: "#dde7e3" }}>
-              <Stack direction="row" spacing={1} flexWrap="wrap">
-                <ConfirmButton
-                  title="Mark connection accepted"
-                  description="Confirm only after this person accepted your LinkedIn request."
-                  disabled={!canMarkAccepted}
-                  onConfirm={() => runAction("accepted", () => transition("FOLLOW_UP_READY"))}
-                  startIcon={<CheckCircle2 size={18} />}
-                >
-                  Mark Accepted
-                </ConfirmButton>
-              </Stack>
+            <Paper variant="outlined" sx={{ borderColor: "divider", p: 1.7 }}>
+              <ConfirmButton
+                title="Mark connection accepted"
+                description="Confirm only after this person accepted your LinkedIn request."
+                disabled={!canMarkAccepted}
+                onConfirm={() => runAction("accepted", () => transition("FOLLOW_UP_READY"))}
+                startIcon={<CheckCircle2 size={16} />}
+              >
+                Mark accepted
+              </ConfirmButton>
             </Paper>
 
             <MessagePanel
-              title="Follow-up message"
+              title="Follow-up"
+              context="Purposeful message after the contact accepts."
               value={followUpMessage}
               onChange={setFollowUpMessage}
               placeholder="Generate a follow-up after the contact accepts."
             >
               <Button
                 variant="outlined"
-                startIcon={<RefreshCw size={18} />}
+                startIcon={<RefreshCw size={16} />}
                 disabled={!canFollowUp || busy === "followup"}
                 onClick={() => runAction("followup", () => api.post(`/contacts/${id}/generate-followup`))}
               >
@@ -237,7 +292,7 @@ export default function ContactDetails() {
                 disabled={busy === "save-followup"}
                 onClick={() => runAction("save-followup", () => patchContact({ followUpMessage }))}
               >
-                Save Edits
+                Save
               </Button>
               <ConfirmButton
                 title="Mark follow-up sent"
@@ -249,50 +304,11 @@ export default function ContactDetails() {
                     await transition("MESSAGE_SENT");
                   })
                 }
-                startIcon={<Send size={18} />}
+                startIcon={<Send size={16} />}
               >
-                Mark Sent
+                Mark sent
               </ConfirmButton>
             </MessagePanel>
-
-            <Paper variant="outlined" sx={{ p: 2.2, borderColor: "#dde7e3" }}>
-              <Stack spacing={1.5}>
-                <Typography className="section-title">Response analysis</Typography>
-                <TextField
-                  value={responseText}
-                  onChange={(event) => setResponseText(event.target.value)}
-                  placeholder="Paste the HR or recruiter response"
-                  multiline
-                  minRows={4}
-                  fullWidth
-                />
-                <ConfirmButton
-                  title="Record and analyze response"
-                  description="This saves the response to the timeline and updates the recommended next action."
-                  disabled={!responseText.trim()}
-                  onConfirm={() =>
-                    runAction("response", async () => {
-                      const response = await api.post(`/contacts/${id}/analyze-response`, {
-                        content: responseText,
-                        confirm: true
-                      });
-                      setAnalysis(response.data.analysis);
-                      setResponseText("");
-                    })
-                  }
-                  startIcon={<Sparkles size={18} />}
-                >
-                  Analyze
-                </ConfirmButton>
-                {analysis ? (
-                  <Alert severity={analysis.opportunityLevel === "HIGH" ? "success" : "info"}>
-                    {analysis.recommendedAction}: {analysis.reason}
-                  </Alert>
-                ) : null}
-              </Stack>
-            </Paper>
-
-            <Timeline interactions={contact.interactions || []} />
           </Stack>
         </Box>
       ) : null}

@@ -22,18 +22,18 @@ import PageHeader from "../components/PageHeader.jsx";
 import StatusChip from "../components/StatusChip.jsx";
 import { api } from "../services/api.js";
 import { formatDate } from "../utils/format.js";
-import { CONTACT_STATUSES, labelStatus } from "../utils/status.js";
+import { labelStatus } from "../utils/status.js";
 
 const visibleStatuses = [
-  "ALL",
-  "HR_IDENTIFIED",
-  "HR_APPROVED",
-  "CONNECTION_READY",
-  "CONNECTION_REQUESTED",
-  "FOLLOW_UP_READY",
-  "MESSAGE_SENT",
-  "RESPONDED",
-  "INTERESTED"
+  { value: "ALL", label: "All" },
+  { value: "HR_IDENTIFIED", label: "Needs Review" },
+  { value: "HR_APPROVED", label: "Approved" },
+  { value: "CONNECTION_READY", label: "Request Ready" },
+  { value: "CONNECTION_REQUESTED", label: "Requested" },
+  { value: "CONNECTED", label: "Connected" },
+  { value: "FOLLOW_UP_READY", label: "Follow-up" },
+  { value: "RESPONDED", label: "Responded" },
+  { value: "INTERESTED", label: "Interested" }
 ];
 
 export default function Contacts() {
@@ -64,74 +64,76 @@ export default function Contacts() {
 
   return (
     <>
-      <PageHeader title="Contacts" eyebrow={`${contacts.length} people`}>
+      <PageHeader title="Contacts" subtitle={`${contacts.length} people`}>
         <ContactDialog companies={companies} onCreated={load} />
       </PageHeader>
 
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
 
-      <Paper variant="outlined" sx={{ p: 2, borderColor: "#dde7e3", mb: 2 }}>
-        <Stack spacing={1.5}>
+      <Paper variant="outlined" sx={{ p: 1.5, borderColor: "divider", mb: 1.5 }}>
+        <Stack spacing={1.2}>
           <TextField
             fullWidth
-            placeholder="Search contacts"
+            placeholder="Search contacts..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Search size={18} />
+                  <Search size={16} />
                 </InputAdornment>
               )
             }}
           />
-          <Stack direction="row" spacing={1} flexWrap="wrap">
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
             {visibleStatuses.map((item) => (
               <Chip
-                key={item}
-                label={item === "ALL" ? "All" : labelStatus(item)}
-                color={status === item ? "primary" : "default"}
-                variant={status === item ? "filled" : "outlined"}
-                onClick={() => setStatus(item)}
+                key={item.value}
+                label={item.label}
+                color={status === item.value ? "primary" : "default"}
+                variant={status === item.value ? "filled" : "outlined"}
+                onClick={() => setStatus(item.value)}
               />
             ))}
           </Stack>
         </Stack>
       </Paper>
 
-      <Paper variant="outlined" sx={{ borderColor: "#dde7e3", overflow: "hidden" }}>
+      <Box className="table-wrap">
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>Contact</TableCell>
               <TableCell>Company</TableCell>
-              <TableCell>Status</TableCell>
+              <TableCell>Role</TableCell>
               <TableCell>Relevance</TableCell>
-              <TableCell>Next Action</TableCell>
-              <TableCell>Last Interaction</TableCell>
-              <TableCell align="right">Open</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Last interaction</TableCell>
+              <TableCell>Next action</TableCell>
+              <TableCell align="right">Action</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {contacts.map((contact) => (
               <TableRow key={contact.id} hover>
                 <TableCell>
-                  <Typography fontWeight={850}>{contact.name}</Typography>
-                  <Typography color="text.secondary" fontSize="0.88rem">
-                    {contact.role}
+                  <Typography sx={{ fontWeight: 740 }}>{contact.name}</Typography>
+                  <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>
+                    {contact.linkedinUrl ? "LinkedIn profile saved" : "LinkedIn profile pending"}
                   </Typography>
                 </TableCell>
                 <TableCell>{contact.company?.name || "Unknown"}</TableCell>
-                <TableCell>
-                  <StatusChip status={contact.status} />
-                </TableCell>
+                <TableCell>{contact.role}</TableCell>
                 <TableCell>
                   <span className="score-pill">{contact.relevanceScore ? `${contact.relevanceScore}%` : "New"}</span>
                 </TableCell>
-                <TableCell>{contact.nextAction || "Review contact"}</TableCell>
+                <TableCell>
+                  <StatusChip status={contact.status} />
+                </TableCell>
                 <TableCell>{formatDate(contact.lastInteractionAt)}</TableCell>
+                <TableCell>{contact.nextAction || labelStatus(contact.status)}</TableCell>
                 <TableCell align="right">
-                  <Button component={Link} to={`/contacts/${contact.id}`} size="small" variant="outlined">
+                  <Button component={Link} to={`/contacts/${contact.id}`} variant="outlined">
                     Open
                   </Button>
                 </TableCell>
@@ -139,16 +141,19 @@ export default function Contacts() {
             ))}
             {!contacts.length ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={8}>
                   <Box sx={{ py: 5, textAlign: "center" }}>
-                    <Typography color="text.secondary">No contacts found.</Typography>
+                    <Typography sx={{ fontWeight: 720 }}>No contacts yet.</Typography>
+                    <Typography color="text.secondary" sx={{ mt: 0.4 }}>
+                      Add your first HR or recruiter to start building your networking pipeline.
+                    </Typography>
                   </Box>
                 </TableCell>
               </TableRow>
             ) : null}
           </TableBody>
         </Table>
-      </Paper>
+      </Box>
     </>
   );
 }

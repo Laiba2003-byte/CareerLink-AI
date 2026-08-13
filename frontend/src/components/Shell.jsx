@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   AppBar,
+  Avatar,
   Box,
+  Divider,
   Drawer,
   IconButton,
   List,
@@ -12,60 +14,113 @@ import {
   Toolbar,
   Typography
 } from "@mui/material";
-import { Building2, LayoutDashboard, Menu, UserRoundCog, UsersRound } from "lucide-react";
+import {
+  Building2,
+  Columns3,
+  Home,
+  Menu,
+  Settings,
+  UserRound,
+  UsersRound
+} from "lucide-react";
+import { api } from "../services/api.js";
 
-const drawerWidth = 252;
+const drawerWidth = 232;
 
-const navItems = [
-  { label: "Dashboard", path: "/", icon: LayoutDashboard },
+const primaryNav = [
+  { label: "Overview", path: "/", icon: Home },
   { label: "Companies", path: "/companies", icon: Building2 },
   { label: "Contacts", path: "/contacts", icon: UsersRound },
-  { label: "Profile", path: "/profile", icon: UserRoundCog }
+  { label: "Pipeline", path: "/pipeline", icon: Columns3 }
 ];
 
-function DrawerContent({ onNavigate }) {
+const workspaceNav = [
+  { label: "My Profile", path: "/profile", icon: UserRound },
+  { label: "Settings", path: "/settings", icon: Settings }
+];
+
+function NavList({ items, onNavigate }) {
   const location = useLocation();
 
   return (
-    <Box sx={{ height: "100%", px: 2, py: 2.5 }}>
-      <Box sx={{ px: 1.5, mb: 3 }}>
-        <Typography variant="h2" sx={{ fontSize: "1.35rem" }}>
-          CareerLink AI
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: "0.88rem" }}>
-          Career networking CRM
-        </Typography>
+    <List disablePadding sx={{ display: "grid", gap: 0.25 }}>
+      {items.map((item) => {
+        const Icon = item.icon;
+        const selected = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+
+        return (
+          <ListItemButton
+            key={`${item.label}-${item.path}`}
+            component={Link}
+            to={item.path}
+            onClick={onNavigate}
+            selected={selected}
+            sx={{
+              borderRadius: 1,
+              minHeight: 34,
+              px: 1,
+              color: selected ? "text.primary" : "text.secondary",
+              "&.Mui-selected": {
+                bgcolor: "#ece9e2",
+                color: "text.primary"
+              },
+              "&.Mui-selected:hover": {
+                bgcolor: "#e6e2db"
+              }
+            }}
+          >
+            <ListItemIcon sx={{ color: "inherit", minWidth: 30 }}>
+              <Icon size={16} />
+            </ListItemIcon>
+            <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: "0.86rem", fontWeight: 680 }} />
+          </ListItemButton>
+        );
+      })}
+    </List>
+  );
+}
+
+function DrawerContent({ onNavigate }) {
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    api.get("/profile").then((response) => setProfile(response.data)).catch(() => {});
+  }, []);
+
+  const name = profile?.name?.trim() || "Laiba";
+  const initial = name.charAt(0).toUpperCase();
+
+  return (
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", px: 1.5, py: 1.75 }}>
+      <Box sx={{ px: 1, mb: 2.4 }}>
+        <Typography sx={{ fontSize: "1.04rem", fontWeight: 780, lineHeight: 1.12 }}>CareerLink</Typography>
+        <Typography sx={{ fontSize: "1.04rem", fontWeight: 780, lineHeight: 1.12 }}>AI</Typography>
       </Box>
 
-      <List disablePadding sx={{ display: "grid", gap: 0.75 }}>
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const selected = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+      <NavList items={primaryNav} onNavigate={onNavigate} />
 
-          return (
-            <ListItemButton
-              key={item.path}
-              component={Link}
-              to={item.path}
-              onClick={onNavigate}
-              selected={selected}
-              sx={{
-                borderRadius: 1,
-                minHeight: 44,
-                "&.Mui-selected": {
-                  bgcolor: "#e3f4ef",
-                  color: "primary.dark"
-                }
-              }}
-            >
-              <ListItemIcon sx={{ color: "inherit", minWidth: 36 }}>
-                <Icon size={19} />
-              </ListItemIcon>
-              <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 800 }} />
-            </ListItemButton>
-          );
-        })}
-      </List>
+      <Divider sx={{ my: 2, borderColor: "#e2ded7" }} />
+
+      <Typography className="section-title" sx={{ px: 1, mb: 0.75 }}>
+        Workspace
+      </Typography>
+      <NavList items={workspaceNav} onNavigate={onNavigate} />
+
+      <Box sx={{ flex: 1 }} />
+      <Divider sx={{ mb: 1.2, borderColor: "#e2ded7" }} />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1, py: 0.75 }}>
+        <Avatar sx={{ width: 28, height: 28, bgcolor: "#e6e2db", color: "#202124", fontSize: "0.8rem" }}>
+          {initial}
+        </Avatar>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography noWrap sx={{ fontSize: "0.86rem", fontWeight: 720 }}>
+            {name}
+          </Typography>
+          <Typography noWrap color="text.secondary" sx={{ fontSize: "0.76rem" }}>
+            Personal workspace
+          </Typography>
+        </Box>
+      </Box>
     </Box>
   );
 }
@@ -82,16 +137,14 @@ export default function Shell({ children }) {
           display: { md: "none" },
           bgcolor: "background.paper",
           color: "text.primary",
-          borderBottom: "1px solid #dde5e2"
+          borderBottom: "1px solid #dedbd4"
         }}
       >
-        <Toolbar>
+        <Toolbar variant="dense">
           <IconButton edge="start" onClick={() => setOpen(true)} aria-label="Open navigation">
-            <Menu size={21} />
+            <Menu size={19} />
           </IconButton>
-          <Typography variant="h3" sx={{ ml: 1 }}>
-            CareerLink AI
-          </Typography>
+          <Typography sx={{ ml: 1, fontWeight: 760 }}>CareerLink AI</Typography>
         </Toolbar>
       </AppBar>
 
@@ -103,8 +156,8 @@ export default function Shell({ children }) {
           flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: drawerWidth,
-            borderRight: "1px solid #dde5e2",
-            bgcolor: "#fbfcfb"
+            borderRight: "1px solid #dedbd4",
+            bgcolor: "#fbfaf8"
           }
         }}
       >
@@ -116,7 +169,7 @@ export default function Shell({ children }) {
         onClose={() => setOpen(false)}
         sx={{
           display: { xs: "block", md: "none" },
-          "& .MuiDrawer-paper": { width: drawerWidth }
+          "& .MuiDrawer-paper": { width: drawerWidth, bgcolor: "#fbfaf8" }
         }}
       >
         <DrawerContent onNavigate={() => setOpen(false)} />
@@ -126,12 +179,12 @@ export default function Shell({ children }) {
         component="main"
         sx={{
           ml: { md: `${drawerWidth}px` },
-          px: { xs: 2, sm: 3, lg: 5 },
-          py: { xs: 2.5, sm: 3.5, lg: 4.5 },
+          px: { xs: 2, sm: 3, lg: 4 },
+          py: { xs: 2, sm: 2.75, lg: 3.25 },
           minHeight: "100vh"
         }}
       >
-        {children}
+        <Box sx={{ maxWidth: 1320 }}>{children}</Box>
       </Box>
     </Box>
   );
