@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { normalizeCompanyName, parseDate, splitList } from "../utils/normalize.js";
 import { PIPELINE_STATUSES } from "../utils/status.js";
+import { logger } from "../utils/logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataFile = path.resolve(__dirname, "../../data/dev-store.json");
@@ -12,14 +13,73 @@ function now() {
   return new Date().toISOString();
 }
 
+const DEFAULT_PAGE_SIZE = 25;
+const MAX_PAGE_SIZE = 200;
+
+function positiveInteger(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function getPagination(query = {}) {
+  const hasPagination = query.page !== undefined || query.pageSize !== undefined || query.limit !== undefined;
+  if (!hasPagination) return null;
+
+  const page = positiveInteger(query.page, 1);
+  const pageSize = Math.min(MAX_PAGE_SIZE, positiveInteger(query.pageSize || query.limit, DEFAULT_PAGE_SIZE));
+
+  return {
+    page,
+    pageSize,
+    skip: (page - 1) * pageSize,
+    take: pageSize
+  };
+}
+
+function makePage(items, total, pagination) {
+  const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize));
+
+  return {
+    items,
+    pagination: {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      total,
+      totalPages,
+      hasNextPage: pagination.page < totalPages,
+      hasPreviousPage: pagination.page > 1
+    }
+  };
+}
+
+function paginateArray(items, pagination) {
+  return makePage(items.slice(pagination.skip, pagination.skip + pagination.take), items.length, pagination);
+}
+
+function addCompanyContactCounts(companies, contacts) {
+  const counts = contacts.reduce((acc, contact) => {
+    if (contact.companyId) acc[contact.companyId] = (acc[contact.companyId] || 0) + 1;
+    return acc;
+  }, {});
+
+  return companies.map((company) => ({
+    ...company,
+    contactsCount: counts[company.id] || 0
+  }));
+}
+
+function normalizeCompanyCount(company) {
+  if (!company?._count) return company;
+  const { _count, ...rest } = company;
+  return {
+    ...rest,
+    contactsCount: _count.contacts || 0
+  };
+}
+
 function createDefaultData() {
   const createdAt = now();
   const userId = randomUUID();
-  const companyA = randomUUID();
-  const companyB = randomUUID();
-  const companyC = randomUUID();
-  const contactA = randomUUID();
-  const contactB = randomUUID();
 
   return {
     users: [
@@ -29,173 +89,19 @@ function createDefaultData() {
         email: "",
         bio: "",
         experience: "",
-        skills: ["React", "Node.js", "JavaScript", "SQL", "AI"],
-        targetRoles: ["Full Stack Developer", "Software Engineer", "Frontend Developer"],
-        targetLocations: ["Pakistan", "Remote"],
+        skills: [],
+        targetRoles: [],
+        targetLocations: [],
         projects: [],
-        preferredIndustries: ["Software", "AI", "SaaS"],
+        preferredIndustries: [],
         createdAt,
         updatedAt: createdAt
       }
     ],
-    companies: [
-      {
-        id: companyA,
-        name: "10Pearls",
-        normalizedName: normalizeCompanyName("10Pearls"),
-        website: "https://10pearls.com",
-        email: "hello@10pearls.com",
-        careersEmail: "careers@10pearls.com",
-        careersUrl: "https://10pearls.com/careers",
-        linkedinUrl: "",
-        industry: "Software",
-        description: "Digital product engineering and software services company.",
-        location: "Pakistan",
-        companySize: "",
-        followedOn: null,
-        relevanceScore: 87,
-        matchReason: "Strong match for full-stack and product engineering experience.",
-        researchSummary: "A strong candidate for targeted recruiter outreach around engineering roles.",
-        technologies: ["React", "Node.js", "Cloud"],
-        hiringSignals: ["Engineering hiring likely", "Recruiter contact useful"],
-        recommendedRoles: ["Full Stack Developer", "Software Engineer"],
-        notes: "",
-        discoveryStatus: "READY",
-        lastHrSearchAt: null,
-        source: "MANUAL",
-        createdAt,
-        updatedAt: createdAt
-      },
-      {
-        id: companyB,
-        name: "Systems Limited",
-        normalizedName: normalizeCompanyName("Systems Limited"),
-        website: "https://www.systemsltd.com",
-        email: "",
-        careersEmail: "careers@systemsltd.com",
-        careersUrl: "https://www.systemsltd.com/careers",
-        linkedinUrl: "",
-        industry: "IT Services",
-        description: "Enterprise technology and consulting company.",
-        location: "Pakistan",
-        companySize: "",
-        followedOn: null,
-        relevanceScore: 91,
-        matchReason: "Large technology organization with broad software hiring potential.",
-        researchSummary: "Good target for software engineering and consulting-aligned roles.",
-        technologies: ["JavaScript", "SQL", "Cloud"],
-        hiringSignals: ["Large hiring footprint", "Multiple engineering tracks"],
-        recommendedRoles: ["Software Engineer", "Frontend Developer"],
-        notes: "",
-        discoveryStatus: "READY",
-        lastHrSearchAt: null,
-        source: "MANUAL",
-        createdAt,
-        updatedAt: createdAt
-      },
-      {
-        id: companyC,
-        name: "Arbisoft",
-        normalizedName: normalizeCompanyName("Arbisoft"),
-        website: "https://arbisoft.com",
-        email: "",
-        careersEmail: "careers@arbisoft.com",
-        careersUrl: "https://arbisoft.com/careers",
-        linkedinUrl: "",
-        industry: "Software",
-        description: "Software development company with product and platform engineering work.",
-        location: "Pakistan",
-        companySize: "",
-        followedOn: null,
-        relevanceScore: 78,
-        matchReason: "Relevant engineering company, but needs contact and job context.",
-        researchSummary: "Worth reviewing after higher-priority companies.",
-        technologies: ["Python", "JavaScript", "AI"],
-        hiringSignals: ["Engineering roles worth monitoring"],
-        recommendedRoles: ["Software Engineer"],
-        notes: "",
-        discoveryStatus: "NEEDS_RESEARCH",
-        lastHrSearchAt: null,
-        source: "MANUAL",
-        createdAt,
-        updatedAt: createdAt
-      }
-    ],
-    contacts: [
-      {
-        id: contactA,
-        companyId: companyA,
-        name: "Sarah Khan",
-        role: "Talent Acquisition Manager",
-        email: "sarah.khan@example.com",
-        linkedinUrl: "",
-        source: "MANUAL",
-        notes: "",
-        relevanceScore: 96,
-        relevanceReason: "Directly aligned with engineering recruiting.",
-        whyContact: "Can guide current hiring needs and route your profile.",
-        recommendedOutreachAngle: "Mention full-stack and AI product engineering alignment.",
-        status: "FOLLOW_UP_READY",
-        connectionNote: "Hi Sarah, I noticed your talent work at 10Pearls. I am exploring full-stack engineering roles and would value connecting around React, Node.js, and product engineering opportunities.",
-        followUpMessage: "",
-        connectionRequestedAt: createdAt,
-        connectedAt: createdAt,
-        lastInteractionAt: createdAt,
-        nextAction: "Review and manually send follow-up",
-        nextActionDate: createdAt,
-        priority: 92,
-        createdAt,
-        updatedAt: createdAt
-      },
-      {
-        id: contactB,
-        companyId: companyB,
-        name: "Ahmed Raza",
-        role: "Technical Recruiter",
-        email: "ahmed.raza@example.com",
-        linkedinUrl: "",
-        source: "MANUAL",
-        notes: "",
-        relevanceScore: 91,
-        relevanceReason: "Recruiting role at a high-match company.",
-        whyContact: "Likely aware of current engineering roles.",
-        recommendedOutreachAngle: "Ask about full-stack or frontend hiring tracks.",
-        status: "HR_APPROVED",
-        connectionNote: "",
-        followUpMessage: "",
-        connectionRequestedAt: null,
-        connectedAt: null,
-        lastInteractionAt: null,
-        nextAction: "Generate a personalized connection note",
-        nextActionDate: createdAt,
-        priority: 84,
-        createdAt,
-        updatedAt: createdAt
-      }
-    ],
+    companies: [],
+    contacts: [],
     contactCandidates: [],
-    interactions: [
-      {
-        id: randomUUID(),
-        contactId: contactA,
-        type: "CONNECTION_REQUEST",
-        content: "Connection request sent manually on LinkedIn.",
-        aiAnalysis: "",
-        intent: "",
-        sentiment: "",
-        createdAt
-      },
-      {
-        id: randomUUID(),
-        contactId: contactA,
-        type: "CONNECTION_ACCEPTED",
-        content: "Connection accepted.",
-        aiAnalysis: "",
-        intent: "",
-        sentiment: "",
-        createdAt
-      }
-    ],
+    interactions: [],
     jobOpportunities: []
   };
 }
@@ -301,6 +207,7 @@ class FileStore {
 
   async listCompanies(query = {}) {
     const search = String(query.search || "").toLowerCase();
+    const pagination = getPagination(query);
     let companies = [...this.data.companies];
 
     if (search) {
@@ -326,6 +233,14 @@ class FileStore {
     } else {
       companies.sort((a, b) => Number(b.relevanceScore || 0) - Number(a.relevanceScore || 0) || a.name.localeCompare(b.name));
     }
+
+    if (query.sort === "name") companies.sort((a, b) => a.name.localeCompare(b.name));
+    if (query.sort === "followed") companies.sort((a, b) => new Date(b.followedOn || 0) - new Date(a.followedOn || 0));
+    if (query.sort === "match") companies.sort((a, b) => Number(b.relevanceScore || 0) - Number(a.relevanceScore || 0) || a.name.localeCompare(b.name));
+
+    companies = addCompanyContactCounts(companies, this.data.contacts);
+
+    if (pagination) return paginateArray(companies, pagination);
 
     return companies;
   }
@@ -407,6 +322,22 @@ class FileStore {
     return updated;
   }
 
+  async deleteCompany(id) {
+    const index = this.data.companies.findIndex((item) => item.id === id);
+    if (index === -1) return null;
+
+    const [deleted] = this.data.companies.splice(index, 1);
+    const contactIds = new Set(this.data.contacts.filter((contact) => contact.companyId === id).map((contact) => contact.id));
+
+    this.data.contacts = this.data.contacts.filter((contact) => contact.companyId !== id);
+    this.data.contactCandidates = this.data.contactCandidates.filter((candidate) => candidate.companyId !== id);
+    this.data.jobOpportunities = this.data.jobOpportunities.filter((job) => job.companyId !== id);
+    this.data.interactions = this.data.interactions.filter((interaction) => !contactIds.has(interaction.contactId));
+
+    this.save();
+    return deleted;
+  }
+
   async importCompanies(rows) {
     const created = [];
     for (const row of rows) {
@@ -431,10 +362,23 @@ class FileStore {
 
   async listContacts(query = {}) {
     const search = String(query.search || "").toLowerCase();
+    const pagination = getPagination(query);
     let contacts = this.data.contacts.map((contact) => decorateContact(contact, this.data.companies, this.data.interactions));
 
     if (query.status && query.status !== "ALL") {
       contacts = contacts.filter((contact) => contact.status === query.status);
+    }
+
+    if (query.filter === "high") {
+      contacts = contacts.filter((contact) => Number(contact.priority || 0) >= 85);
+    }
+
+    if (query.filter === "email") {
+      contacts = contacts.filter((contact) => contact.email);
+    }
+
+    if (query.filter === "linkedin") {
+      contacts = contacts.filter((contact) => contact.linkedinUrl);
     }
 
     if (search) {
@@ -446,6 +390,7 @@ class FileStore {
     }
 
     contacts.sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0) || a.name.localeCompare(b.name));
+    if (pagination) return paginateArray(contacts, pagination);
     return contacts;
   }
 
@@ -554,6 +499,7 @@ class FileStore {
   }
 
   async listContactCandidates(query = {}) {
+    const pagination = getPagination(query);
     let candidates = [...this.data.contactCandidates].map((candidate) => ({
       ...candidate,
       company: this.data.companies.find((company) => company.id === candidate.companyId) || null
@@ -567,7 +513,9 @@ class FileStore {
       candidates = candidates.filter((candidate) => candidate.status === query.status);
     }
 
-    return candidates.sort((a, b) => Number(b.confidenceScore || 0) - Number(a.confidenceScore || 0));
+    candidates.sort((a, b) => Number(b.confidenceScore || 0) - Number(a.confidenceScore || 0));
+    if (pagination) return paginateArray(candidates, pagination);
+    return candidates;
   }
 
   async createContactCandidates(companyId, rows) {
@@ -666,6 +614,13 @@ class FileStore {
   async dashboard() {
     const companies = this.data.companies;
     const contacts = this.data.contacts;
+    const actionContacts = contacts
+      .filter((contact) =>
+        ["HR_IDENTIFIED", "CONNECTION_READY", "FOLLOW_UP_READY", "RESPONDED", "INTERESTED", "CV_REQUESTED"].includes(contact.status)
+      )
+      .sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0))
+      .slice(0, 8)
+      .map((contact) => decorateContact(contact, this.data.companies, this.data.interactions));
     const pendingCandidates = this.data.contactCandidates.filter((candidate) => candidate.status === "PENDING").length;
     const activeOpportunities = contacts.filter((contact) =>
       ["INTERESTED", "CV_REQUESTED", "CV_SENT", "INTERVIEW", "OFFER"].includes(contact.status)
@@ -681,18 +636,13 @@ class FileStore {
         pendingRequests: contacts.filter((contact) => contact.status === "CONNECTION_REQUESTED").length,
         pendingCandidates
       },
-      todaysActions: contacts
-        .filter((contact) =>
-          ["HR_IDENTIFIED", "CONNECTION_READY", "FOLLOW_UP_READY", "RESPONDED", "INTERESTED", "CV_REQUESTED"].includes(contact.status)
-        )
-        .sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0))
-        .slice(0, 8)
-        .map((contact) => ({
+      todaysActions: actionContacts.map((contact) => ({
           id: contact.id,
           label: `${contact.name} - ${contact.nextAction || "Review next step"}`,
           status: contact.status,
           priority: contact.priority
         })),
+      actionContacts,
       pipeline: PIPELINE_STATUSES.map((status) => ({
         status,
         count: contacts.filter((contact) => contact.status === status).length
@@ -718,11 +668,55 @@ class PrismaStore {
   }
 
   async listCompanies(query = {}) {
-    const companies = await this.prisma.company.findMany({
-      orderBy: [{ relevanceScore: "desc" }, { name: "asc" }]
-    });
-    const fileStore = { data: { companies } };
-    return FileStore.prototype.listCompanies.call(fileStore, query);
+    const search = String(query.search || "").trim();
+    const pagination = getPagination(query);
+    const and = [];
+
+    if (search) {
+      and.push({
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { industry: { contains: search, mode: "insensitive" } },
+          { location: { contains: search, mode: "insensitive" } },
+          { website: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+          { careersEmail: { contains: search, mode: "insensitive" } },
+          { linkedinUrl: { contains: search, mode: "insensitive" } },
+          { notes: { contains: search, mode: "insensitive" } }
+        ]
+      });
+    }
+
+    if (query.filter === "high-match") and.push({ relevanceScore: { gte: 80 } });
+    if (query.filter === "hiring") and.push({ hiringSignals: { isEmpty: false } });
+    if (query.filter === "recent") and.push({ followedOn: { not: null } });
+
+    const where = and.length ? { AND: and } : {};
+    const orderBy =
+      query.sort === "name"
+        ? [{ name: "asc" }]
+        : query.sort === "followed" || query.filter === "recent"
+          ? [{ followedOn: "desc" }, { name: "asc" }]
+          : [{ relevanceScore: "desc" }, { name: "asc" }];
+    const include = { _count: { select: { contacts: true } } };
+
+    if (pagination) {
+      const [total, companies] = await Promise.all([
+        this.prisma.company.count({ where }),
+        this.prisma.company.findMany({
+          where,
+          orderBy,
+          skip: pagination.skip,
+          take: pagination.take,
+          include
+        })
+      ]);
+
+      return makePage(companies.map(normalizeCompanyCount), total, pagination);
+    }
+
+    const companies = await this.prisma.company.findMany({ where, orderBy, include });
+    return companies.map(normalizeCompanyCount);
   }
 
   async getCompany(id) {
@@ -775,6 +769,14 @@ class PrismaStore {
     return this.prisma.company.update({ where: { id }, data });
   }
 
+  async deleteCompany(id) {
+    const company = await this.prisma.company.findUnique({ where: { id } });
+    if (!company) return null;
+
+    await this.prisma.company.delete({ where: { id } });
+    return company;
+  }
+
   async importCompanies(rows) {
     const data = rows.map((row) => ({
       name: row.name,
@@ -797,22 +799,48 @@ class PrismaStore {
   }
 
   async listContacts(query = {}) {
-    const contacts = await this.prisma.contact.findMany({
-      include: {
-        company: true,
-        interactions: { orderBy: { createdAt: "asc" } }
-      },
-      orderBy: [{ priority: "desc" }, { name: "asc" }]
-    });
-    let filtered = contacts;
-    if (query.status && query.status !== "ALL") filtered = filtered.filter((contact) => contact.status === query.status);
-    if (query.search) {
-      const search = String(query.search).toLowerCase();
-      filtered = filtered.filter((contact) =>
-        [contact.name, contact.role, contact.company?.name].some((value) => String(value || "").toLowerCase().includes(search))
-      );
+    const search = String(query.search || "").trim();
+    const pagination = getPagination(query);
+    const and = [];
+
+    if (query.status && query.status !== "ALL") and.push({ status: query.status });
+    if (query.filter === "high") and.push({ priority: { gte: 85 } });
+    if (query.filter === "email") and.push({ email: { not: null } }, { email: { not: "" } });
+    if (query.filter === "linkedin") and.push({ linkedinUrl: { not: null } }, { linkedinUrl: { not: "" } });
+
+    if (search) {
+      and.push({
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { role: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+          { linkedinUrl: { contains: search, mode: "insensitive" } },
+          { company: { is: { name: { contains: search, mode: "insensitive" } } } }
+        ]
+      });
     }
-    return filtered;
+
+    const where = and.length ? { AND: and } : {};
+    const queryConfig = {
+      where,
+      include: { company: true },
+      orderBy: [{ priority: "desc" }, { name: "asc" }]
+    };
+
+    if (pagination) {
+      const [total, contacts] = await Promise.all([
+        this.prisma.contact.count({ where }),
+        this.prisma.contact.findMany({
+          ...queryConfig,
+          skip: pagination.skip,
+          take: pagination.take
+        })
+      ]);
+
+      return makePage(contacts, total, pagination);
+    }
+
+    return this.prisma.contact.findMany(queryConfig);
   }
 
   async getContact(id) {
@@ -916,14 +944,30 @@ class PrismaStore {
   }
 
   async listContactCandidates(query = {}) {
-    return this.prisma.contactCandidate.findMany({
+    const pagination = getPagination(query);
+    const queryConfig = {
       where: {
         ...(query.companyId ? { companyId: query.companyId } : {}),
         ...(query.status && query.status !== "ALL" ? { status: query.status } : {})
       },
       include: { company: true },
       orderBy: [{ confidenceScore: "desc" }, { createdAt: "desc" }]
-    });
+    };
+
+    if (pagination) {
+      const [total, candidates] = await Promise.all([
+        this.prisma.contactCandidate.count({ where: queryConfig.where }),
+        this.prisma.contactCandidate.findMany({
+          ...queryConfig,
+          skip: pagination.skip,
+          take: pagination.take
+        })
+      ]);
+
+      return makePage(candidates, total, pagination);
+    }
+
+    return this.prisma.contactCandidate.findMany(queryConfig);
   }
 
   async createContactCandidates(companyId, rows) {
@@ -994,27 +1038,88 @@ class PrismaStore {
   }
 
   async dashboard() {
-    const companies = await this.listCompanies();
-    const contacts = await this.listContacts();
-    const contactCandidates = await this.listContactCandidates({ status: "PENDING" });
-    const fileStore = { data: { companies, contacts, contactCandidates } };
-    return FileStore.prototype.dashboard.call(fileStore);
+    const connectedStatuses = ["CONNECTED", "FOLLOW_UP_READY", "MESSAGE_SENT", "RESPONDED", "INTERESTED"];
+    const activeOpportunityStatuses = ["INTERESTED", "CV_REQUESTED", "CV_SENT", "INTERVIEW", "OFFER"];
+    const actionStatuses = ["HR_IDENTIFIED", "CONNECTION_READY", "FOLLOW_UP_READY", "RESPONDED", "INTERESTED", "CV_REQUESTED"];
+
+    const [
+      companies,
+      highPriority,
+      contacts,
+      connected,
+      opportunities,
+      pendingRequests,
+      pendingCandidates,
+      actionContacts,
+      pipelineCounts
+    ] = await Promise.all([
+      this.prisma.company.count(),
+      this.prisma.company.count({ where: { relevanceScore: { gte: 80 } } }),
+      this.prisma.contact.count(),
+      this.prisma.contact.count({ where: { status: { in: connectedStatuses } } }),
+      this.prisma.contact.count({ where: { status: { in: activeOpportunityStatuses } } }),
+      this.prisma.contact.count({ where: { status: "CONNECTION_REQUESTED" } }),
+      this.prisma.contactCandidate.count({ where: { status: "PENDING" } }),
+      this.prisma.contact.findMany({
+        where: { status: { in: actionStatuses } },
+        include: { company: true },
+        orderBy: [{ priority: "desc" }, { name: "asc" }],
+        take: 8
+      }),
+      this.prisma.contact.groupBy({
+        by: ["status"],
+        _count: { _all: true },
+        where: { status: { in: PIPELINE_STATUSES } }
+      })
+    ]);
+
+    const pipelineMap = new Map(pipelineCounts.map((item) => [item.status, item._count._all]));
+
+    return {
+      metrics: {
+        companies,
+        highPriority,
+        contacts,
+        connected,
+        opportunities,
+        pendingRequests,
+        pendingCandidates
+      },
+      todaysActions: actionContacts.map((contact) => ({
+        id: contact.id,
+        label: `${contact.name} - ${contact.nextAction || "Review next step"}`,
+        status: contact.status,
+        priority: contact.priority
+      })),
+      actionContacts,
+      pipeline: PIPELINE_STATUSES.map((status) => ({
+        status,
+        count: pipelineMap.get(status) || 0
+      }))
+    };
   }
 }
 
 export async function createStore() {
-  if (process.env.DATABASE_URL && process.env.DATA_STORE !== "file") {
+  const databaseUrl = process.env.DATABASE_URL || "";
+  const hasPlaceholderDatabaseUrl = /USER:PASSWORD@HOST|^postgresql:\/\/$/i.test(databaseUrl);
+
+  if (databaseUrl && !hasPlaceholderDatabaseUrl && process.env.DATA_STORE !== "file") {
     try {
       const { PrismaClient } = await import("@prisma/client");
       const prisma = new PrismaClient();
       await prisma.$connect();
-      console.log("Using Prisma/PostgreSQL data store");
+      logger.info("store.selected", { type: "prisma_postgresql" });
       return new PrismaStore(prisma);
     } catch (error) {
-      console.warn(`Prisma unavailable, falling back to local file data store: ${error.message}`);
+      logger.warn("store.prisma_unavailable", { fallback: "file", reason: error.message });
     }
+  } else if (process.env.DATA_STORE === "file") {
+    logger.warn("store.file_forced", { reason: "DATA_STORE=file" });
+  } else if (hasPlaceholderDatabaseUrl) {
+    logger.warn("store.placeholder_database_url", { fallback: "file" });
   }
 
-  console.log("Using local file data store");
+  logger.info("store.selected", { type: "local_file" });
   return new FileStore();
 }

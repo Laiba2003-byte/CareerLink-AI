@@ -2,6 +2,7 @@ import { generateJson } from "./ai.service.js";
 
 export async function analyzeRecruiterResponse(contact, responseText) {
   return generateJson({
+    task: "response.analysis",
     system:
       "Analyze a recruiter or HR response and recommend the next action for a job-seeking networking CRM.",
     prompt: JSON.stringify({ contact, responseText }),

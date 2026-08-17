@@ -8,6 +8,7 @@ import { generateConnectionNote, generateFollowUp } from "../services/ai/outreac
 import { analyzeRecruiterResponse } from "../services/ai/responseAnalysis.js";
 import { recommendNextAction } from "../services/ai/nextAction.js";
 import { discoverHrCandidates } from "../services/ai/hrDiscovery.js";
+import { logger } from "../utils/logger.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -135,6 +136,15 @@ export function createApiRouter(store) {
     })
   );
 
+  router.delete(
+    "/companies/:id",
+    asyncRoute(async (req, res) => {
+      const company = await store.deleteCompany(req.params.id);
+      if (!company) return res.status(404).json({ message: "Company not found" });
+      res.json({ deleted: true, company });
+    })
+  );
+
   router.post(
     "/companies/import",
     upload.single("file"),
@@ -160,6 +170,7 @@ export function createApiRouter(store) {
   router.post(
     "/companies/bulk-discover-hrs",
     asyncRoute(async (req, res) => {
+      const startedAt = Date.now();
       const companyIds = Array.isArray(req.body.companyIds) ? req.body.companyIds.slice(0, 25) : [];
       const maxResults = Math.min(Number(req.body.maxResults || 3), 5);
       if (!companyIds.length) {
@@ -168,14 +179,40 @@ export function createApiRouter(store) {
 
       const profile = await store.getProfile();
       const results = [];
+      logger.info("hr.discovery.bulk.start", {
+        requestId: req.requestId,
+        requestedCompanyCount: companyIds.length,
+        maxResults
+      });
 
       for (const companyId of companyIds) {
         const company = await store.getCompany(companyId);
         if (!company) continue;
+        logger.info("hr.discovery.company.start", {
+          requestId: req.requestId,
+          companyId: company.id,
+          companyName: company.name,
+          hasWebsite: Boolean(company.website),
+          hasLinkedIn: Boolean(company.linkedinUrl),
+          hasEmail: Boolean(company.email || company.careersEmail)
+        });
         const discovered = await discoverHrCandidates(company, profile, { maxResults });
         const created = await store.createContactCandidates(company.id, discovered);
+        logger.info("hr.discovery.company.saved", {
+          requestId: req.requestId,
+          companyId: company.id,
+          discoveredCount: discovered.length,
+          createdCount: created.length
+        });
         results.push({ companyId: company.id, companyName: company.name, candidates: created });
       }
+
+      logger.info("hr.discovery.bulk.done", {
+        requestId: req.requestId,
+        companiesProcessed: results.length,
+        candidatesCreated: results.reduce((sum, item) => sum + item.candidates.length, 0),
+        elapsedMs: Date.now() - startedAt
+      });
 
       res.status(201).json({
         companiesProcessed: results.length,
@@ -188,11 +225,34 @@ export function createApiRouter(store) {
   router.post(
     "/companies/:id/research",
     asyncRoute(async (req, res) => {
+      const startedAt = Date.now();
       const company = await store.getCompany(req.params.id);
       if (!company) return res.status(404).json({ message: "Company not found" });
 
       const profile = await store.getProfile();
+      logger.info("company.research.start", {
+        requestId: req.requestId,
+        companyId: company.id,
+        companyName: company.name,
+        hasWebsite: Boolean(company.website),
+        hasLinkedIn: Boolean(company.linkedinUrl),
+        hasEmail: Boolean(company.email || company.careersEmail),
+        hasIndustry: Boolean(company.industry),
+        profileSkillCount: profile.skills?.length || 0,
+        profileTargetRoleCount: profile.targetRoles?.length || 0
+      });
+
       const result = await researchCompany(company, profile);
+      logger.info("company.research.ai_result", {
+        requestId: req.requestId,
+        companyId: company.id,
+        resultKeys: Object.keys(result || {}),
+        relevanceScore: result?.relevanceScore,
+        technologyCount: result?.technologies?.length || 0,
+        hiringSignalCount: result?.hiringSignals?.length || 0,
+        recommendedRoleCount: result?.recommendedRoles?.length || 0
+      });
+
       const updated = await store.updateCompany(company.id, {
         description: result.description || company.description,
         industry: result.industry,
@@ -201,7 +261,19 @@ export function createApiRouter(store) {
         relevanceScore: result.relevanceScore,
         matchReason: result.matchReason,
         researchSummary: result.summary || result.researchSummary,
-        recommendedRoles: result.recommendedRoles || []
+        recommendedRoles: result.recommendedRoles || [],
+        discoveryStatus: ["CANDIDATES_FOUND", "NO_NEW_CANDIDATES"].includes(company.discoveryStatus)
+          ? company.discoveryStatus
+          : "READY_FOR_HR_DISCOVERY"
+      });
+
+      logger.info("company.research.saved", {
+        requestId: req.requestId,
+        companyId: company.id,
+        savedIndustry: updated.industry,
+        savedRelevanceScore: updated.relevanceScore,
+        savedTechnologyCount: updated.technologies?.length || 0,
+        elapsedMs: Date.now() - startedAt
       });
 
       res.json({ company: updated, research: result });
@@ -211,14 +283,31 @@ export function createApiRouter(store) {
   router.post(
     "/companies/:id/discover-hrs",
     asyncRoute(async (req, res) => {
+      const startedAt = Date.now();
       const company = await store.getCompany(req.params.id);
       if (!company) return res.status(404).json({ message: "Company not found" });
 
       const profile = await store.getProfile();
+      logger.info("hr.discovery.start", {
+        requestId: req.requestId,
+        companyId: company.id,
+        companyName: company.name,
+        hasWebsite: Boolean(company.website),
+        hasLinkedIn: Boolean(company.linkedinUrl),
+        hasEmail: Boolean(company.email || company.careersEmail)
+      });
       const discovered = await discoverHrCandidates(company, profile, {
         maxResults: Math.min(Number(req.body.maxResults || 3), 5)
       });
       const candidates = await store.createContactCandidates(company.id, discovered);
+
+      logger.info("hr.discovery.saved", {
+        requestId: req.requestId,
+        companyId: company.id,
+        discoveredCount: discovered.length,
+        createdCount: candidates.length,
+        elapsedMs: Date.now() - startedAt
+      });
 
       res.status(201).json({ companyId: company.id, candidates });
     })

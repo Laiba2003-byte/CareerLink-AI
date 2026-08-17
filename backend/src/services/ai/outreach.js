@@ -14,6 +14,7 @@ function primaryRole(profile) {
 
 export async function generateConnectionNote(contact, company, profile) {
   return generateJson({
+    task: "outreach.connection_note",
     system:
       "Write concise LinkedIn connection notes under 300 characters. Do not claim a personal relationship. Keep it professional and human.",
     prompt: JSON.stringify({ contact, company, profile }),
@@ -25,6 +26,7 @@ export async function generateConnectionNote(contact, company, profile) {
 
 export async function generateFollowUp(contact, company, profile, interactions = []) {
   return generateJson({
+    task: "outreach.follow_up",
     system:
       "Write a purposeful LinkedIn follow-up. It must not only say thanks for connecting. Include a clear professional reason for the conversation.",
     prompt: JSON.stringify({ contact, company, profile, interactions }),

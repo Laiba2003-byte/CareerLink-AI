@@ -3,6 +3,7 @@ import { generateJson } from "./ai.service.js";
 
 export async function recommendNextAction(contact, company, profile, interactions = []) {
   return generateJson({
+    task: "next_action.recommend",
     system:
       "Recommend the next best action for one career networking contact. Return a short practical action and priority.",
     prompt: JSON.stringify({ contact, company, profile, interactions }),

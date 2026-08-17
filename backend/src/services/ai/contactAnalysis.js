@@ -7,6 +7,7 @@ function isRecruitingRole(role = "") {
 
 export async function analyzeContact(contact, company, profile) {
   return generateJson({
+    task: "contact.analysis",
     system:
       "You evaluate whether a professional contact is relevant for career networking. Favor recruiters, HR, talent acquisition, and engineering hiring stakeholders.",
     prompt: JSON.stringify({ contact, company, profile }),

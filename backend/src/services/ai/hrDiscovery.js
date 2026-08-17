@@ -54,6 +54,7 @@ function fallbackCandidates(company, maxResults = 3) {
 
 export async function discoverHrCandidates(company, profile, { maxResults = 3 } = {}) {
   return generateJson({
+    task: "hr.discovery",
     system:
       "Find likely HR, recruiter, talent acquisition, or people-team contacts for a career networking CRM. Only return structured candidate records. Avoid inventing highly specific claims; include confidence and reason.",
     prompt: JSON.stringify({ company, profile, maxResults }),
