@@ -59,13 +59,16 @@ function NavList({ items, onNavigate }) {
               borderRadius: 1,
               minHeight: 34,
               px: 1,
-              color: selected ? "text.primary" : "text.secondary",
+              color: selected ? "#ffffff" : "rgba(255,255,255,0.68)",
               "&.Mui-selected": {
-                bgcolor: "#ece9e2",
-                color: "text.primary"
+                bgcolor: "rgba(79, 70, 229, 0.95)",
+                color: "#ffffff"
               },
               "&.Mui-selected:hover": {
-                bgcolor: "#e6e2db"
+                bgcolor: "#4f46e5"
+              },
+              "&:hover": {
+                bgcolor: "rgba(255,255,255,0.08)"
               }
             }}
           >
@@ -91,32 +94,32 @@ function DrawerContent({ onNavigate }) {
   const initial = name.charAt(0).toUpperCase();
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", px: 1.5, py: 1.75 }}>
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", px: 1.5, py: 1.75, color: "#fff" }}>
       <Box sx={{ px: 1, mb: 2.4 }}>
         <Typography sx={{ fontSize: "1.04rem", fontWeight: 780, lineHeight: 1.12 }}>CareerLink</Typography>
-        <Typography sx={{ fontSize: "1.04rem", fontWeight: 780, lineHeight: 1.12 }}>AI</Typography>
+        <Typography sx={{ fontSize: "1.04rem", fontWeight: 780, lineHeight: 1.12, color: "#a5b4fc" }}>AI</Typography>
       </Box>
 
       <NavList items={primaryNav} onNavigate={onNavigate} />
 
-      <Divider sx={{ my: 2, borderColor: "#e2ded7" }} />
+      <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.12)" }} />
 
-      <Typography className="section-title" sx={{ px: 1, mb: 0.75 }}>
+      <Typography className="section-title" sx={{ px: 1, mb: 0.75, color: "rgba(255,255,255,0.48)" }}>
         Workspace
       </Typography>
       <NavList items={workspaceNav} onNavigate={onNavigate} />
 
       <Box sx={{ flex: 1 }} />
-      <Divider sx={{ mb: 1.2, borderColor: "#e2ded7" }} />
+      <Divider sx={{ mb: 1.2, borderColor: "rgba(255,255,255,0.12)" }} />
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1, py: 0.75 }}>
-        <Avatar sx={{ width: 28, height: 28, bgcolor: "#e6e2db", color: "#202124", fontSize: "0.8rem" }}>
+        <Avatar sx={{ width: 28, height: 28, bgcolor: "#22d3ee", color: "#083344", fontSize: "0.8rem", fontWeight: 800 }}>
           {initial}
         </Avatar>
         <Box sx={{ minWidth: 0 }}>
           <Typography noWrap sx={{ fontSize: "0.86rem", fontWeight: 720 }}>
             {name}
           </Typography>
-          <Typography noWrap color="text.secondary" sx={{ fontSize: "0.76rem" }}>
+          <Typography noWrap sx={{ fontSize: "0.76rem", color: "rgba(255,255,255,0.55)" }}>
             Personal workspace
           </Typography>
         </Box>
@@ -156,8 +159,8 @@ export default function Shell({ children }) {
           flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: drawerWidth,
-            borderRight: "1px solid #dedbd4",
-            bgcolor: "#fbfaf8"
+            borderRight: 0,
+            bgcolor: "#111827"
           }
         }}
       >
@@ -169,7 +172,7 @@ export default function Shell({ children }) {
         onClose={() => setOpen(false)}
         sx={{
           display: { xs: "block", md: "none" },
-          "& .MuiDrawer-paper": { width: drawerWidth, bgcolor: "#fbfaf8" }
+          "& .MuiDrawer-paper": { width: drawerWidth, bgcolor: "#111827" }
         }}
       >
         <DrawerContent onNavigate={() => setOpen(false)} />

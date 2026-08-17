@@ -2,12 +2,12 @@ import { Chip } from "@mui/material";
 import { labelStatus, statusColor } from "../utils/status.js";
 
 const tone = {
-  default: { borderColor: "#d8d5cf", bgcolor: "#f7f6f3", color: "#5f6368" },
-  primary: { borderColor: "#d7dfeb", bgcolor: "#f4f7fb", color: "#2f4a70" },
-  info: { borderColor: "#d7dfeb", bgcolor: "#f4f7fb", color: "#2f4a70" },
-  success: { borderColor: "#d9e6dd", bgcolor: "#f4faf6", color: "#2f6f48" },
-  warning: { borderColor: "#e6dcc8", bgcolor: "#fbf7ee", color: "#7b5a1f" },
-  error: { borderColor: "#ead8d6", bgcolor: "#fbf4f3", color: "#8a3d38" }
+  default: { borderColor: "#e5e7eb", bgcolor: "#f8fafc", color: "#475467" },
+  primary: { borderColor: "#c7d2fe", bgcolor: "#eef2ff", color: "#3730a3" },
+  info: { borderColor: "#bfdbfe", bgcolor: "#eff6ff", color: "#1d4ed8" },
+  success: { borderColor: "#bbf7d0", bgcolor: "#f0fdf4", color: "#15803d" },
+  warning: { borderColor: "#fed7aa", bgcolor: "#fff7ed", color: "#9a3412" },
+  error: { borderColor: "#fecaca", bgcolor: "#fef2f2", color: "#b91c1c" }
 };
 
 export default function StatusChip({ status }) {

@@ -20,11 +20,13 @@ export default function ContactDialog({ companies = [], defaultCompanyId = "", o
     companyId: firstCompanyId,
     name: "",
     role: "",
-    linkedinUrl: ""
+    email: "",
+    linkedinUrl: "",
+    notes: ""
   });
 
   function openDialog() {
-    setForm({ companyId: firstCompanyId, name: "", role: "", linkedinUrl: "" });
+    setForm({ companyId: firstCompanyId, name: "", role: "", email: "", linkedinUrl: "", notes: "" });
     setOpen(true);
   }
 
@@ -69,7 +71,9 @@ export default function ContactDialog({ companies = [], defaultCompanyId = "", o
               </TextField>
               <TextField label="Name" value={form.name} onChange={(e) => update("name", e.target.value)} required />
               <TextField label="Role" value={form.role} onChange={(e) => update("role", e.target.value)} required />
+              <TextField label="Email" value={form.email} onChange={(e) => update("email", e.target.value)} />
               <TextField label="LinkedIn URL" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} />
+              <TextField label="Notes" value={form.notes} onChange={(e) => update("notes", e.target.value)} multiline minRows={2} />
             </Stack>
           </DialogContent>
           <DialogActions>

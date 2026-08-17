@@ -4,33 +4,33 @@ export const theme = createTheme({
   palette: {
     mode: "light",
     background: {
-      default: "#f6f5f2",
+      default: "#f4f7fb",
       paper: "#ffffff"
     },
     primary: {
-      main: "#3f5f8f",
-      dark: "#2f4a70"
+      main: "#4f46e5",
+      dark: "#3730a3"
     },
     secondary: {
-      main: "#5f6368"
+      main: "#0891b2"
     },
     success: {
-      main: "#3f7f58"
+      main: "#16a34a"
     },
     warning: {
-      main: "#a87624"
+      main: "#d97706"
     },
     error: {
-      main: "#a14b45"
+      main: "#dc2626"
     },
     info: {
-      main: "#4b6f99"
+      main: "#2563eb"
     },
     text: {
-      primary: "#202124",
-      secondary: "#686c70"
+      primary: "#111827",
+      secondary: "#667085"
     },
-    divider: "#dedbd4"
+    divider: "#e5e7eb"
   },
   shape: {
     borderRadius: 6
@@ -58,8 +58,9 @@ export const theme = createTheme({
           boxShadow: "none"
         },
         contained: {
+          backgroundColor: "#4f46e5",
           boxShadow: "none",
-          "&:hover": { boxShadow: "none" }
+          "&:hover": { backgroundColor: "#4338ca", boxShadow: "none" }
         }
       }
     },
@@ -91,8 +92,8 @@ export const theme = createTheme({
           padding: "11px 14px"
         },
         head: {
-          backgroundColor: "#fbfaf8",
-          color: "#686c70",
+          backgroundColor: "#f8fafc",
+          color: "#667085",
           fontSize: "0.74rem",
           fontWeight: 750,
           letterSpacing: "0.04em",

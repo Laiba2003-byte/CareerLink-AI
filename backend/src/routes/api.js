@@ -1,12 +1,13 @@
 import express from "express";
 import multer from "multer";
-import { parseCompanyFollowsCsv, summarizeImport } from "../utils/csvImport.js";
+import { parseCompanyFollowsCsv, parseContactCsv, summarizeContactImport, summarizeImport } from "../utils/csvImport.js";
 import { CONTACT_STATUSES, IMPORTANT_STATUS_CHANGES, nextActionForStatus } from "../utils/status.js";
 import { researchCompany } from "../services/ai/companyResearch.js";
 import { analyzeContact } from "../services/ai/contactAnalysis.js";
 import { generateConnectionNote, generateFollowUp } from "../services/ai/outreach.js";
 import { analyzeRecruiterResponse } from "../services/ai/responseAnalysis.js";
 import { recommendNextAction } from "../services/ai/nextAction.js";
+import { discoverHrCandidates } from "../services/ai/hrDiscovery.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -157,6 +158,34 @@ export function createApiRouter(store) {
   );
 
   router.post(
+    "/companies/bulk-discover-hrs",
+    asyncRoute(async (req, res) => {
+      const companyIds = Array.isArray(req.body.companyIds) ? req.body.companyIds.slice(0, 25) : [];
+      const maxResults = Math.min(Number(req.body.maxResults || 3), 5);
+      if (!companyIds.length) {
+        return res.status(400).json({ message: "Select at least one company" });
+      }
+
+      const profile = await store.getProfile();
+      const results = [];
+
+      for (const companyId of companyIds) {
+        const company = await store.getCompany(companyId);
+        if (!company) continue;
+        const discovered = await discoverHrCandidates(company, profile, { maxResults });
+        const created = await store.createContactCandidates(company.id, discovered);
+        results.push({ companyId: company.id, companyName: company.name, candidates: created });
+      }
+
+      res.status(201).json({
+        companiesProcessed: results.length,
+        candidatesCreated: results.reduce((sum, item) => sum + item.candidates.length, 0),
+        results
+      });
+    })
+  );
+
+  router.post(
     "/companies/:id/research",
     asyncRoute(async (req, res) => {
       const company = await store.getCompany(req.params.id);
@@ -179,6 +208,22 @@ export function createApiRouter(store) {
     })
   );
 
+  router.post(
+    "/companies/:id/discover-hrs",
+    asyncRoute(async (req, res) => {
+      const company = await store.getCompany(req.params.id);
+      if (!company) return res.status(404).json({ message: "Company not found" });
+
+      const profile = await store.getProfile();
+      const discovered = await discoverHrCandidates(company, profile, {
+        maxResults: Math.min(Number(req.body.maxResults || 3), 5)
+      });
+      const candidates = await store.createContactCandidates(company.id, discovered);
+
+      res.status(201).json({ companyId: company.id, candidates });
+    })
+  );
+
   router.get(
     "/contacts",
     asyncRoute(async (req, res) => {
@@ -193,6 +238,64 @@ export function createApiRouter(store) {
         return res.status(400).json({ message: "companyId, name, and role are required" });
       }
       res.status(201).json(await store.createContact(req.body));
+    })
+  );
+
+  router.post(
+    "/contacts/import",
+    upload.single("file"),
+    asyncRoute(async (req, res) => {
+      if (!req.file) {
+        return res.status(400).json({ message: "Upload a contacts CSV" });
+      }
+
+      const companies = await store.listCompanies();
+      const contacts = await store.listContacts();
+      const rows = parseContactCsv(req.file.buffer, companies, req.body.companyId || "");
+      const summary = summarizeContactImport(rows, contacts);
+      const dryRun = req.body.dryRun !== "false";
+
+      if (dryRun) {
+        return res.json(summary);
+      }
+
+      const created = await store.importContacts(summary.valid);
+      res.status(201).json({ ...summary, importedCount: created.length, imported: created });
+    })
+  );
+
+  router.get(
+    "/contact-candidates",
+    asyncRoute(async (req, res) => {
+      res.json(await store.listContactCandidates(req.query));
+    })
+  );
+
+  router.post(
+    "/contact-candidates/approve-bulk",
+    asyncRoute(async (req, res) => {
+      const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+      if (!ids.length) return res.status(400).json({ message: "Select at least one candidate" });
+      const contacts = await store.approveContactCandidates(ids);
+      res.status(201).json({ approvedCount: contacts.length, contacts });
+    })
+  );
+
+  router.post(
+    "/contact-candidates/:id/approve",
+    asyncRoute(async (req, res) => {
+      const contact = await store.approveContactCandidate(req.params.id);
+      if (!contact) return res.status(404).json({ message: "Candidate not found" });
+      res.status(201).json(contact);
+    })
+  );
+
+  router.patch(
+    "/contact-candidates/:id",
+    asyncRoute(async (req, res) => {
+      const candidate = await store.updateContactCandidate(req.params.id, req.body);
+      if (!candidate) return res.status(404).json({ message: "Candidate not found" });
+      res.json(candidate);
     })
   );
 

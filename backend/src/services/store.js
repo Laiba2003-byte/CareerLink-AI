@@ -44,6 +44,9 @@ function createDefaultData() {
         name: "10Pearls",
         normalizedName: normalizeCompanyName("10Pearls"),
         website: "https://10pearls.com",
+        email: "hello@10pearls.com",
+        careersEmail: "careers@10pearls.com",
+        careersUrl: "https://10pearls.com/careers",
         linkedinUrl: "",
         industry: "Software",
         description: "Digital product engineering and software services company.",
@@ -56,6 +59,9 @@ function createDefaultData() {
         technologies: ["React", "Node.js", "Cloud"],
         hiringSignals: ["Engineering hiring likely", "Recruiter contact useful"],
         recommendedRoles: ["Full Stack Developer", "Software Engineer"],
+        notes: "",
+        discoveryStatus: "READY",
+        lastHrSearchAt: null,
         source: "MANUAL",
         createdAt,
         updatedAt: createdAt
@@ -65,6 +71,9 @@ function createDefaultData() {
         name: "Systems Limited",
         normalizedName: normalizeCompanyName("Systems Limited"),
         website: "https://www.systemsltd.com",
+        email: "",
+        careersEmail: "careers@systemsltd.com",
+        careersUrl: "https://www.systemsltd.com/careers",
         linkedinUrl: "",
         industry: "IT Services",
         description: "Enterprise technology and consulting company.",
@@ -77,6 +86,9 @@ function createDefaultData() {
         technologies: ["JavaScript", "SQL", "Cloud"],
         hiringSignals: ["Large hiring footprint", "Multiple engineering tracks"],
         recommendedRoles: ["Software Engineer", "Frontend Developer"],
+        notes: "",
+        discoveryStatus: "READY",
+        lastHrSearchAt: null,
         source: "MANUAL",
         createdAt,
         updatedAt: createdAt
@@ -86,6 +98,9 @@ function createDefaultData() {
         name: "Arbisoft",
         normalizedName: normalizeCompanyName("Arbisoft"),
         website: "https://arbisoft.com",
+        email: "",
+        careersEmail: "careers@arbisoft.com",
+        careersUrl: "https://arbisoft.com/careers",
         linkedinUrl: "",
         industry: "Software",
         description: "Software development company with product and platform engineering work.",
@@ -98,6 +113,9 @@ function createDefaultData() {
         technologies: ["Python", "JavaScript", "AI"],
         hiringSignals: ["Engineering roles worth monitoring"],
         recommendedRoles: ["Software Engineer"],
+        notes: "",
+        discoveryStatus: "NEEDS_RESEARCH",
+        lastHrSearchAt: null,
         source: "MANUAL",
         createdAt,
         updatedAt: createdAt
@@ -109,7 +127,10 @@ function createDefaultData() {
         companyId: companyA,
         name: "Sarah Khan",
         role: "Talent Acquisition Manager",
+        email: "sarah.khan@example.com",
         linkedinUrl: "",
+        source: "MANUAL",
+        notes: "",
         relevanceScore: 96,
         relevanceReason: "Directly aligned with engineering recruiting.",
         whyContact: "Can guide current hiring needs and route your profile.",
@@ -131,7 +152,10 @@ function createDefaultData() {
         companyId: companyB,
         name: "Ahmed Raza",
         role: "Technical Recruiter",
+        email: "ahmed.raza@example.com",
         linkedinUrl: "",
+        source: "MANUAL",
+        notes: "",
         relevanceScore: 91,
         relevanceReason: "Recruiting role at a high-match company.",
         whyContact: "Likely aware of current engineering roles.",
@@ -149,6 +173,7 @@ function createDefaultData() {
         updatedAt: createdAt
       }
     ],
+    contactCandidates: [],
     interactions: [
       {
         id: randomUUID(),
@@ -202,13 +227,55 @@ function decorateContact(contact, companies, interactions) {
   };
 }
 
+function ensureDataShape(data) {
+  data.users ||= [];
+  data.companies ||= [];
+  data.contacts ||= [];
+  data.contactCandidates ||= [];
+  data.interactions ||= [];
+  data.jobOpportunities ||= [];
+
+  data.companies = data.companies.map((company) => ({
+    email: "",
+    careersEmail: "",
+    careersUrl: "",
+    notes: "",
+    discoveryStatus: company.relevanceScore ? "READY" : "NEEDS_RESEARCH",
+    lastHrSearchAt: null,
+    ...company
+  }));
+
+  data.contacts = data.contacts.map((contact) => ({
+    email: "",
+    source: "MANUAL",
+    notes: "",
+    ...contact
+  }));
+
+  data.contactCandidates = data.contactCandidates.map((candidate) => ({
+    email: "",
+    linkedinUrl: "",
+    sourceUrl: "",
+    confidenceScore: 50,
+    reason: "",
+    source: "AI_DISCOVERY",
+    status: "PENDING",
+    createdAt: now(),
+    updatedAt: now(),
+    ...candidate
+  }));
+
+  return data;
+}
+
 class FileStore {
   constructor() {
     fs.mkdirSync(path.dirname(dataFile), { recursive: true });
     if (!fs.existsSync(dataFile)) {
       fs.writeFileSync(dataFile, JSON.stringify(createDefaultData(), null, 2));
     }
-    this.data = JSON.parse(fs.readFileSync(dataFile, "utf8"));
+    this.data = ensureDataShape(JSON.parse(fs.readFileSync(dataFile, "utf8")));
+    this.save();
   }
 
   save() {
@@ -238,7 +305,9 @@ class FileStore {
 
     if (search) {
       companies = companies.filter((company) =>
-        [company.name, company.industry, company.location].some((value) => String(value || "").toLowerCase().includes(search))
+        [company.name, company.industry, company.location, company.website, company.email, company.careersEmail, company.linkedinUrl, company.notes].some((value) =>
+          String(value || "").toLowerCase().includes(search)
+        )
       );
     }
 
@@ -268,6 +337,7 @@ class FileStore {
     return {
       ...company,
       contacts: this.data.contacts.filter((contact) => contact.companyId === id),
+      contactCandidates: this.data.contactCandidates.filter((candidate) => candidate.companyId === id && candidate.status === "PENDING"),
       jobOpportunities: this.data.jobOpportunities.filter((job) => job.companyId === id)
     };
   }
@@ -279,6 +349,9 @@ class FileStore {
       name: input.name,
       normalizedName: normalizeCompanyName(input.name),
       website: input.website || "",
+      email: input.email || "",
+      careersEmail: input.careersEmail || "",
+      careersUrl: input.careersUrl || "",
       linkedinUrl: input.linkedinUrl || "",
       industry: input.industry || "",
       description: input.description || "",
@@ -291,6 +364,9 @@ class FileStore {
       technologies: splitList(input.technologies),
       hiringSignals: splitList(input.hiringSignals),
       recommendedRoles: splitList(input.recommendedRoles),
+      notes: input.notes || "",
+      discoveryStatus: input.discoveryStatus || "NEEDS_RESEARCH",
+      lastHrSearchAt: input.lastHrSearchAt || null,
       source: input.source || "MANUAL",
       createdAt,
       updatedAt: createdAt
@@ -338,7 +414,14 @@ class FileStore {
         await this.createCompany({
           name: row.name,
           followedOn: row.followedOn,
-          source: "LINKEDIN_EXPORT"
+          website: row.website,
+          email: row.email,
+          careersEmail: row.careersEmail,
+          linkedinUrl: row.linkedinUrl,
+          industry: row.industry,
+          location: row.location,
+          notes: row.notes,
+          source: row.source || "CSV_IMPORT"
         })
       );
     }
@@ -356,7 +439,9 @@ class FileStore {
 
     if (search) {
       contacts = contacts.filter((contact) =>
-        [contact.name, contact.role, contact.company?.name].some((value) => String(value || "").toLowerCase().includes(search))
+        [contact.name, contact.role, contact.email, contact.linkedinUrl, contact.company?.name].some((value) =>
+          String(value || "").toLowerCase().includes(search)
+        )
       );
     }
 
@@ -376,7 +461,10 @@ class FileStore {
       companyId: input.companyId,
       name: input.name,
       role: input.role,
+      email: input.email || "",
       linkedinUrl: input.linkedinUrl || "",
+      source: input.source || "MANUAL",
+      notes: input.notes || "",
       relevanceScore: input.relevanceScore ?? null,
       relevanceReason: input.relevanceReason || "",
       whyContact: input.whyContact || "",
@@ -397,6 +485,30 @@ class FileStore {
     this.data.contacts.push(contact);
     this.save();
     return this.getContact(contact.id);
+  }
+
+  async importContacts(rows) {
+    const created = [];
+    for (const row of rows) {
+      created.push(
+        await this.createContact({
+          companyId: row.companyId,
+          name: row.name,
+          role: row.role,
+          email: row.email,
+          linkedinUrl: row.linkedinUrl,
+          notes: row.notes,
+          source: row.source || "CSV_IMPORT",
+          status: "HR_IDENTIFIED",
+          relevanceScore: row.relevanceScore ?? null,
+          relevanceReason: row.relevanceReason || "",
+          nextAction: "Review and approve this contact",
+          priority: row.priority ?? 55
+        })
+      );
+    }
+
+    return created;
   }
 
   async updateContact(id, input) {
@@ -441,9 +553,120 @@ class FileStore {
     return interaction;
   }
 
+  async listContactCandidates(query = {}) {
+    let candidates = [...this.data.contactCandidates].map((candidate) => ({
+      ...candidate,
+      company: this.data.companies.find((company) => company.id === candidate.companyId) || null
+    }));
+
+    if (query.companyId) {
+      candidates = candidates.filter((candidate) => candidate.companyId === query.companyId);
+    }
+
+    if (query.status && query.status !== "ALL") {
+      candidates = candidates.filter((candidate) => candidate.status === query.status);
+    }
+
+    return candidates.sort((a, b) => Number(b.confidenceScore || 0) - Number(a.confidenceScore || 0));
+  }
+
+  async createContactCandidates(companyId, rows) {
+    const createdAt = now();
+    const created = [];
+
+    for (const row of rows) {
+      const duplicate = this.data.contactCandidates.some((candidate) => {
+        const sameCompany = candidate.companyId === companyId;
+        const sameEmail = row.email && candidate.email && candidate.email.toLowerCase() === row.email.toLowerCase();
+        const sameName = candidate.name.toLowerCase() === String(row.name || "").toLowerCase();
+        return sameCompany && (sameEmail || sameName) && candidate.status !== "REJECTED";
+      });
+
+      if (duplicate) continue;
+
+      const candidate = {
+        id: randomUUID(),
+        companyId,
+        name: row.name || "Recruiting Team",
+        role: row.role || "HR / Recruiter",
+        email: row.email || "",
+        linkedinUrl: row.linkedinUrl || "",
+        sourceUrl: row.sourceUrl || "",
+        confidenceScore: row.confidenceScore ?? 50,
+        reason: row.reason || "",
+        source: row.source || "AI_DISCOVERY",
+        status: row.status || "PENDING",
+        createdAt,
+        updatedAt: createdAt
+      };
+
+      this.data.contactCandidates.push(candidate);
+      created.push(candidate);
+    }
+
+    const company = this.data.companies.find((item) => item.id === companyId);
+    if (company) {
+      company.discoveryStatus = created.length ? "CANDIDATES_FOUND" : "NO_NEW_CANDIDATES";
+      company.lastHrSearchAt = createdAt;
+      company.updatedAt = createdAt;
+    }
+
+    this.save();
+    return created;
+  }
+
+  async updateContactCandidate(id, input) {
+    const index = this.data.contactCandidates.findIndex((candidate) => candidate.id === id);
+    if (index === -1) return null;
+
+    this.data.contactCandidates[index] = {
+      ...this.data.contactCandidates[index],
+      ...input,
+      updatedAt: now()
+    };
+
+    this.save();
+    return this.data.contactCandidates[index];
+  }
+
+  async approveContactCandidate(id) {
+    const candidate = this.data.contactCandidates.find((item) => item.id === id);
+    if (!candidate) return null;
+
+    const contact = await this.createContact({
+      companyId: candidate.companyId,
+      name: candidate.name,
+      role: candidate.role,
+      email: candidate.email,
+      linkedinUrl: candidate.linkedinUrl,
+      relevanceScore: candidate.confidenceScore,
+      relevanceReason: candidate.reason,
+      whyContact: candidate.reason,
+      recommendedOutreachAngle: "Verify the contact, then generate a personalized connection request.",
+      source: candidate.source,
+      notes: `Approved from HR discovery candidate. Source: ${candidate.sourceUrl || "Not provided"}`,
+      status: "HR_IDENTIFIED",
+      priority: Math.max(55, candidate.confidenceScore || 50)
+    });
+
+    await this.updateContactCandidate(id, { status: "APPROVED" });
+    return contact;
+  }
+
+  async approveContactCandidates(ids = []) {
+    const created = [];
+    for (const id of ids) {
+      const contact = await this.approveContactCandidate(id);
+      if (contact) created.push(contact);
+    }
+
+    return created;
+  }
+
   async dashboard() {
     const companies = this.data.companies;
     const contacts = this.data.contacts;
+    const pendingCandidates = this.data.contactCandidates.filter((candidate) => candidate.status === "PENDING").length;
     const activeOpportunities = contacts.filter((contact) =>
       ["INTERESTED", "CV_REQUESTED", "CV_SENT", "INTERVIEW", "OFFER"].includes(contact.status)
     ).length;
@@ -455,7 +678,8 @@ class FileStore {
         contacts: contacts.length,
         connected: contacts.filter((contact) => ["CONNECTED", "FOLLOW_UP_READY", "MESSAGE_SENT", "RESPONDED", "INTERESTED"].includes(contact.status)).length,
         opportunities: activeOpportunities,
-        pendingRequests: contacts.filter((contact) => contact.status === "CONNECTION_REQUESTED").length
+        pendingRequests: contacts.filter((contact) => contact.status === "CONNECTION_REQUESTED").length,
+        pendingCandidates
       },
       todaysActions: contacts
         .filter((contact) =>
@@ -506,6 +730,7 @@ class PrismaStore {
       where: { id },
       include: {
         contacts: { orderBy: { priority: "desc" } },
+        contactCandidates: { where: { status: "PENDING" }, orderBy: { confidenceScore: "desc" } },
         jobOpportunities: { orderBy: { matchScore: "desc" } }
       }
     });
@@ -517,6 +742,9 @@ class PrismaStore {
         name: input.name,
         normalizedName: normalizeCompanyName(input.name),
         website: input.website || null,
+        email: input.email || null,
+        careersEmail: input.careersEmail || null,
+        careersUrl: input.careersUrl || null,
         linkedinUrl: input.linkedinUrl || null,
         industry: input.industry || null,
         description: input.description || null,
@@ -529,6 +757,9 @@ class PrismaStore {
         technologies: splitList(input.technologies),
         hiringSignals: splitList(input.hiringSignals),
         recommendedRoles: splitList(input.recommendedRoles),
+        notes: input.notes || null,
+        discoveryStatus: input.discoveryStatus || "NEEDS_RESEARCH",
+        lastHrSearchAt: input.lastHrSearchAt ? new Date(input.lastHrSearchAt) : null,
         source: input.source || "MANUAL"
       }
     });
@@ -549,7 +780,14 @@ class PrismaStore {
       name: row.name,
       normalizedName: row.normalizedName,
       followedOn: row.followedOn ? new Date(row.followedOn) : null,
-      source: "LINKEDIN_EXPORT"
+      website: row.website || null,
+      email: row.email || null,
+      careersEmail: row.careersEmail || null,
+      linkedinUrl: row.linkedinUrl || null,
+      industry: row.industry || null,
+      location: row.location || null,
+      notes: row.notes || null,
+      source: row.source || "CSV_IMPORT"
     }));
 
     await this.prisma.company.createMany({ data, skipDuplicates: true });
@@ -593,7 +831,10 @@ class PrismaStore {
         companyId: input.companyId,
         name: input.name,
         role: input.role,
+        email: input.email || null,
         linkedinUrl: input.linkedinUrl || null,
+        source: input.source || "MANUAL",
+        notes: input.notes || null,
         relevanceScore: input.relevanceScore ?? null,
         relevanceReason: input.relevanceReason || null,
         whyContact: input.whyContact || null,
@@ -610,6 +851,28 @@ class PrismaStore {
       },
       include: { company: true, interactions: true }
     });
+  }
+
+  async importContacts(rows) {
+    const created = [];
+    for (const row of rows) {
+      created.push(
+        await this.createContact({
+          companyId: row.companyId,
+          name: row.name,
+          role: row.role,
+          email: row.email,
+          linkedinUrl: row.linkedinUrl,
+          notes: row.notes,
+          source: row.source || "CSV_IMPORT",
+          status: "HR_IDENTIFIED",
+          nextAction: "Review and approve this contact",
+          priority: row.priority ?? 55
+        })
+      );
+    }
+
+    return created;
   }
 
   async updateContact(id, input) {
@@ -652,10 +915,89 @@ class PrismaStore {
     return interaction;
   }
 
+  async listContactCandidates(query = {}) {
+    return this.prisma.contactCandidate.findMany({
+      where: {
+        ...(query.companyId ? { companyId: query.companyId } : {}),
+        ...(query.status && query.status !== "ALL" ? { status: query.status } : {})
+      },
+      include: { company: true },
+      orderBy: [{ confidenceScore: "desc" }, { createdAt: "desc" }]
+    });
+  }
+
+  async createContactCandidates(companyId, rows) {
+    const data = rows.map((row) => ({
+      companyId,
+      name: row.name || "Recruiting Team",
+      role: row.role || "HR / Recruiter",
+      email: row.email || null,
+      linkedinUrl: row.linkedinUrl || null,
+      sourceUrl: row.sourceUrl || null,
+      confidenceScore: row.confidenceScore ?? 50,
+      reason: row.reason || null,
+      source: row.source || "AI_DISCOVERY",
+      status: row.status || "PENDING"
+    }));
+
+    if (!data.length) return [];
+
+    await this.prisma.contactCandidate.createMany({ data });
+    await this.prisma.company.update({
+      where: { id: companyId },
+      data: { discoveryStatus: "CANDIDATES_FOUND", lastHrSearchAt: new Date() }
+    });
+
+    return this.prisma.contactCandidate.findMany({
+      where: { companyId, status: "PENDING" },
+      include: { company: true },
+      orderBy: [{ confidenceScore: "desc" }]
+    });
+  }
+
+  async updateContactCandidate(id, input) {
+    return this.prisma.contactCandidate.update({ where: { id }, data: input });
+  }
+
+  async approveContactCandidate(id) {
+    const candidate = await this.prisma.contactCandidate.findUnique({ where: { id } });
+    if (!candidate) return null;
+
+    const contact = await this.createContact({
+      companyId: candidate.companyId,
+      name: candidate.name,
+      role: candidate.role,
+      email: candidate.email,
+      linkedinUrl: candidate.linkedinUrl,
+      relevanceScore: candidate.confidenceScore,
+      relevanceReason: candidate.reason,
+      whyContact: candidate.reason,
+      recommendedOutreachAngle: "Verify the contact, then generate a personalized connection request.",
+      source: candidate.source,
+      notes: `Approved from HR discovery candidate. Source: ${candidate.sourceUrl || "Not provided"}`,
+      status: "HR_IDENTIFIED",
+      priority: Math.max(55, candidate.confidenceScore || 50)
+    });
+
+    await this.updateContactCandidate(id, { status: "APPROVED" });
+    return contact;
+  }
+
+  async approveContactCandidates(ids = []) {
+    const created = [];
+    for (const id of ids) {
+      const contact = await this.approveContactCandidate(id);
+      if (contact) created.push(contact);
+    }
+
+    return created;
+  }
+
   async dashboard() {
     const companies = await this.listCompanies();
     const contacts = await this.listContacts();
-    const fileStore = { data: { companies, contacts } };
+    const contactCandidates = await this.listContactCandidates({ status: "PENDING" });
+    const fileStore = { data: { companies, contacts, contactCandidates } };
     return FileStore.prototype.dashboard.call(fileStore);
   }
 }

@@ -92,7 +92,7 @@ export default function ContactDetails() {
     <>
       <PageHeader
         title={contact?.name || "Contact"}
-        subtitle={`${contact?.role || ""} · ${contact?.company?.name || "Unknown company"}`}
+        subtitle={`${contact?.role || ""} - ${contact?.company?.name || "Unknown company"}`}
       >
         {contact ? <StatusChip status={contact.status} /> : null}
         <Button component="a" href={linkedinUrl} target="_blank" rel="noreferrer" variant="outlined" startIcon={<ExternalLink size={16} />}>
@@ -169,6 +169,7 @@ export default function ContactDetails() {
                   <Typography sx={{ fontWeight: 740 }}>{contact.name}</Typography>
                   <Typography color="text.secondary">{contact.role}</Typography>
                   <Typography color="text.secondary">{contact.company?.name}</Typography>
+                  {contact.email ? <Typography color="text.secondary">{contact.email}</Typography> : null}
                 </Box>
                 <Divider />
                 <Stack direction="row" justifyContent="space-between">
@@ -216,7 +217,7 @@ export default function ContactDetails() {
 
             <MessagePanel
               title="Connection request"
-              context={`${contact.name} · ${contact.company?.name || "Unknown company"}`}
+              context={`${contact.name} - ${contact.company?.name || "Unknown company"}`}
               value={connectionNote}
               onChange={setConnectionNote}
               placeholder="Generate or draft a concise LinkedIn connection note."

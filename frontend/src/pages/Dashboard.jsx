@@ -9,9 +9,9 @@ import {
   Stack,
   Typography
 } from "@mui/material";
+import { ArrowRight } from "lucide-react";
 import ImportDialog from "../components/ImportDialog.jsx";
 import MetricCard from "../components/MetricCard.jsx";
-import PageHeader from "../components/PageHeader.jsx";
 import StatusChip from "../components/StatusChip.jsx";
 import { api } from "../services/api.js";
 import { formatDate } from "../utils/format.js";
@@ -60,19 +60,62 @@ export default function Dashboard() {
 
   return (
     <>
-      <PageHeader
-        title={`Good morning, ${profile?.name?.trim() || "Laiba"}`}
-        subtitle="Here's what needs your attention."
+      <Paper
+        variant="outlined"
+        sx={{
+          borderColor: "#d9ddff",
+          bgcolor: "#eef2ff",
+          p: { xs: 2, md: 2.7 },
+          mb: 2.2,
+          overflow: "hidden",
+          position: "relative"
+        }}
       >
-        <ImportDialog onImported={load} />
-      </PageHeader>
+        <Box
+          sx={{
+            position: "absolute",
+            right: -70,
+            top: -80,
+            width: 220,
+            height: 220,
+            borderRadius: "50%",
+            bgcolor: "rgba(8, 145, 178, 0.15)"
+          }}
+        />
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", md: "center" }}
+          sx={{ position: "relative" }}
+        >
+          <Box>
+            <Typography className="section-title" sx={{ color: "#3730a3", mb: 0.7 }}>
+              Career command center
+            </Typography>
+            <Typography variant="h1" sx={{ fontSize: { xs: "1.8rem", md: "2.2rem" } }}>
+              Good morning, {profile?.name?.trim() || "Laiba"}
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.7 }}>
+              Keep companies, HR discovery, and outreach moving without wasting AI calls.
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button component={Link} to="/companies" variant="contained" endIcon={<ArrowRight size={16} />}>
+              Find HRs
+            </Button>
+            <ImportDialog onImported={load} />
+          </Stack>
+        </Stack>
+      </Paper>
 
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
 
-      <Paper variant="outlined" sx={{ borderColor: "divider", mb: 2.5, px: { xs: 1.5, sm: 0 } }}>
+      <Box sx={{ mb: 2.5 }}>
         <Box
           sx={{
             display: "grid",
+            gap: 1.4,
             gridTemplateColumns: {
               xs: "repeat(2, minmax(0, 1fr))",
               sm: "repeat(3, minmax(0, 1fr))",
@@ -80,14 +123,14 @@ export default function Dashboard() {
             }
           }}
         >
-          <MetricCard label="Companies" value={metrics.companies} />
-          <MetricCard label="Potential HRs" value={metrics.contacts} />
-          <MetricCard label="Connections" value={metrics.connected} />
-          <MetricCard label="Opportunities" value={metrics.opportunities} />
-          <MetricCard label="High Match" value={metrics.highPriority} />
-          <MetricCard label="Pending" value={metrics.pendingRequests} />
+          <MetricCard label="Companies" value={metrics.companies} accent="#4f46e5" helper="Tracked targets" />
+          <MetricCard label="Potential HRs" value={metrics.contacts} accent="#0891b2" helper="Approved people" />
+          <MetricCard label="Candidates" value={metrics.pendingCandidates} accent="#f97316" helper="Need review" />
+          <MetricCard label="Connections" value={metrics.connected} accent="#16a34a" helper="Active network" />
+          <MetricCard label="Opportunities" value={metrics.opportunities} accent="#e11d48" helper="Hot signals" />
+          <MetricCard label="Pending" value={metrics.pendingRequests} accent="#2563eb" helper="Requests sent" />
         </Box>
-      </Paper>
+      </Box>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "1.35fr 0.65fr" }, gap: 2.5 }}>
         <Box>
@@ -118,7 +161,7 @@ export default function Dashboard() {
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontWeight: 760 }}>{contact.name}</Typography>
                       <Typography color="text.secondary" sx={{ fontSize: "0.82rem" }}>
-                        {contact.role} · {contact.company?.name || "Unknown company"}
+                        {contact.role} - {contact.company?.name || "Unknown company"}
                       </Typography>
                       <Typography sx={{ mt: 1 }}>{contact.nextAction || "Review next step"}</Typography>
                       <Typography color="text.secondary" sx={{ fontSize: "0.78rem" }}>

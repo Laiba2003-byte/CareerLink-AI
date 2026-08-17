@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Divider,
   LinearProgress,
   Paper,
@@ -16,7 +17,9 @@ import {
   Typography
 } from "@mui/material";
 import { ExternalLink, Search } from "lucide-react";
+import CandidateReviewTable from "../components/CandidateReviewTable.jsx";
 import ContactDialog from "../components/ContactDialog.jsx";
+import ContactImportDialog from "../components/ContactImportDialog.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import StatusChip from "../components/StatusChip.jsx";
 import { api } from "../services/api.js";
@@ -27,6 +30,7 @@ export default function CompanyDetails() {
   const [company, setCompany] = useState(null);
   const [companies, setCompanies] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [discovering, setDiscovering] = useState(false);
   const [error, setError] = useState("");
 
   async function load() {
@@ -60,6 +64,19 @@ export default function CompanyDetails() {
     }
   }
 
+  async function discoverHrs() {
+    setDiscovering(true);
+    setError("");
+    try {
+      await api.post(`/companies/${id}/discover-hrs`, { maxResults: 3 });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDiscovering(false);
+    }
+  }
+
   if (!company && !error) {
     return <LinearProgress />;
   }
@@ -68,7 +85,7 @@ export default function CompanyDetails() {
     <>
       <PageHeader
         title={company?.name || "Company"}
-        subtitle={`${company?.industry || "Industry pending"} · ${company?.location || "Location not set"}`}
+        subtitle={`${company?.industry || "Industry pending"} - ${company?.location || "Location not set"}`}
       >
         {company?.linkedinUrl || company?.website ? (
           <Button
@@ -79,19 +96,23 @@ export default function CompanyDetails() {
             variant="outlined"
             startIcon={<ExternalLink size={16} />}
           >
-            Open LinkedIn
+            Open Link
           </Button>
         ) : null}
         <Button variant="outlined" startIcon={<Search size={16} />} onClick={research} disabled={busy}>
-          Research Company
+          Research
         </Button>
+        <Button variant="contained" startIcon={<Search size={16} />} onClick={discoverHrs} disabled={discovering}>
+          Find HRs
+        </Button>
+        <ContactImportDialog companyId={id} onImported={load} />
         <ContactDialog companies={companies} defaultCompanyId={id} onCreated={load} />
       </PageHeader>
 
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
 
       {company ? (
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "1fr 0.72fr" }, gap: 3 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "1fr 0.76fr" }, gap: 3 }}>
           <Paper variant="outlined" sx={{ borderColor: "divider", p: 2.2 }}>
             <Stack spacing={2.2}>
               <Box>
@@ -105,7 +126,7 @@ export default function CompanyDetails() {
 
               <Divider />
 
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2 }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, gap: 2 }}>
                 <Box>
                   <Typography className="section-title" sx={{ mb: 0.7 }}>
                     Match
@@ -123,6 +144,47 @@ export default function CompanyDetails() {
                     Source
                   </Typography>
                   <Typography>{company.source}</Typography>
+                </Box>
+                <Box>
+                  <Typography className="section-title" sx={{ mb: 0.7 }}>
+                    HR discovery
+                  </Typography>
+                  <span className="discovery-pill">{(company.discoveryStatus || "NEEDS_RESEARCH").replaceAll("_", " ")}</span>
+                </Box>
+              </Box>
+
+              <Divider />
+
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2 }}>
+                <Box>
+                  <Typography className="section-title" sx={{ mb: 0.7 }}>
+                    Website
+                  </Typography>
+                  {company.website ? (
+                    <Typography component="a" href={company.website} target="_blank" rel="noreferrer" color="primary">
+                      {company.website}
+                    </Typography>
+                  ) : (
+                    <Typography color="text.secondary">Not provided</Typography>
+                  )}
+                </Box>
+                <Box>
+                  <Typography className="section-title" sx={{ mb: 0.7 }}>
+                    Email
+                  </Typography>
+                  <Typography>{company.email || company.careersEmail || "Not provided"}</Typography>
+                </Box>
+                <Box>
+                  <Typography className="section-title" sx={{ mb: 0.7 }}>
+                    Careers
+                  </Typography>
+                  {company.careersUrl ? (
+                    <Typography component="a" href={company.careersUrl} target="_blank" rel="noreferrer" color="primary">
+                      Careers page
+                    </Typography>
+                  ) : (
+                    <Typography color="text.secondary">Not provided</Typography>
+                  )}
                 </Box>
               </Box>
 
@@ -155,13 +217,29 @@ export default function CompanyDetails() {
                   <Typography>{listText(company.recommendedRoles)}</Typography>
                 </Box>
               </Box>
+
+              {company.notes ? (
+                <>
+                  <Divider />
+                  <Box>
+                    <Typography className="section-title" sx={{ mb: 0.8 }}>
+                      Notes
+                    </Typography>
+                    <Typography>{company.notes}</Typography>
+                  </Box>
+                </>
+              ) : null}
             </Stack>
           </Paper>
 
           <Box>
-            <Typography variant="h2" sx={{ mb: 1.2 }}>
-              Potential contacts
+            <Typography variant="h2" sx={{ mb: 1 }}>
+              HR contacts
             </Typography>
+            <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+              <Chip label={`${company.contacts?.length || 0} approved contacts`} variant="outlined" />
+              <Chip label={`${company.contactCandidates?.length || 0} pending candidates`} variant="outlined" color="primary" />
+            </Stack>
             <Box className="table-wrap">
               <Table>
                 <TableHead>
@@ -181,6 +259,11 @@ export default function CompanyDetails() {
                           <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>
                             {contact.role}
                           </Typography>
+                          {contact.email ? (
+                            <Typography color="text.secondary" sx={{ fontSize: "0.78rem" }}>
+                              {contact.email}
+                            </Typography>
+                          ) : null}
                         </TableCell>
                         <TableCell>
                           <span className="score-pill">{contact.relevanceScore ? `${contact.relevanceScore}%` : "New"}</span>
@@ -201,7 +284,7 @@ export default function CompanyDetails() {
                         <Box sx={{ py: 4, textAlign: "center" }}>
                           <Typography sx={{ fontWeight: 720 }}>No contacts yet.</Typography>
                           <Typography color="text.secondary" sx={{ mt: 0.4 }}>
-                            Add HR or recruiter contacts manually for V1.
+                            Add HR manually, import HR CSV, or run HR discovery.
                           </Typography>
                         </Box>
                       </TableCell>
@@ -209,6 +292,13 @@ export default function CompanyDetails() {
                   )}
                 </TableBody>
               </Table>
+            </Box>
+
+            <Box sx={{ mt: 2.5 }}>
+              <Typography variant="h2" sx={{ mb: 1 }}>
+                HR candidates
+              </Typography>
+              <CandidateReviewTable candidates={company.contactCandidates || []} onChanged={load} />
             </Box>
           </Box>
         </Box>

@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { Search } from "lucide-react";
 import ContactDialog from "../components/ContactDialog.jsx";
+import ContactImportDialog from "../components/ContactImportDialog.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import StatusChip from "../components/StatusChip.jsx";
 import { api } from "../services/api.js";
@@ -65,6 +66,7 @@ export default function Contacts() {
   return (
     <>
       <PageHeader title="Contacts" subtitle={`${contacts.length} people`}>
+        <ContactImportDialog onImported={load} />
         <ContactDialog companies={companies} onCreated={load} />
       </PageHeader>
 
@@ -106,6 +108,7 @@ export default function Contacts() {
               <TableCell>Contact</TableCell>
               <TableCell>Company</TableCell>
               <TableCell>Role</TableCell>
+              <TableCell>Email</TableCell>
               <TableCell>Relevance</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Last interaction</TableCell>
@@ -124,6 +127,7 @@ export default function Contacts() {
                 </TableCell>
                 <TableCell>{contact.company?.name || "Unknown"}</TableCell>
                 <TableCell>{contact.role}</TableCell>
+                <TableCell>{contact.email || "Not provided"}</TableCell>
                 <TableCell>
                   <span className="score-pill">{contact.relevanceScore ? `${contact.relevanceScore}%` : "New"}</span>
                 </TableCell>
@@ -141,7 +145,7 @@ export default function Contacts() {
             ))}
             {!contacts.length ? (
               <TableRow>
-                <TableCell colSpan={8}>
+                <TableCell colSpan={9}>
                   <Box sx={{ py: 5, textAlign: "center" }}>
                     <Typography sx={{ fontWeight: 720 }}>No contacts yet.</Typography>
                     <Typography color="text.secondary" sx={{ mt: 0.4 }}>
