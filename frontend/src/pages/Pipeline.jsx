@@ -116,7 +116,7 @@ export default function Pipeline() {
                 </Stack>
                 <hr className="muted-rule" />
                 <Stack spacing={0.8} sx={{ p: 0.9 }}>
-                  {items.map((contact) => (
+                  {items.map((contact, index) => (
                     <Paper
                       key={contact.id}
                       component={Link}
@@ -135,12 +135,15 @@ export default function Pipeline() {
                       }}
                     >
                       <Stack spacing={0.75}>
-                        <Box>
-                          <Typography sx={{ fontWeight: 740 }}>{contact.name}</Typography>
-                          <Typography color="text.secondary" sx={{ fontSize: "0.78rem" }}>
-                            {contact.company?.name || "Unknown company"}
-                          </Typography>
-                        </Box>
+                        <Stack direction="row" spacing={0.8} alignItems="flex-start">
+                          <span className="serial-pill">{index + 1}</span>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={{ fontWeight: 740 }}>{contact.name}</Typography>
+                            <Typography color="text.secondary" sx={{ fontSize: "0.78rem" }}>
+                              {contact.company?.name || "Unknown company"}
+                            </Typography>
+                          </Box>
+                        </Stack>
                         <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>
                           {contact.role}
                         </Typography>

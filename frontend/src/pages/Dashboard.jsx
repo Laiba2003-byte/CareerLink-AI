@@ -150,7 +150,7 @@ export default function Dashboard() {
                   <Box
                     sx={{
                       display: "grid",
-                      gridTemplateColumns: { xs: "1fr", md: "1fr 180px 90px" },
+                      gridTemplateColumns: { xs: "38px 1fr", md: "44px 1fr 180px 90px" },
                       gap: 2,
                       alignItems: "center",
                       px: 2,
@@ -158,6 +158,7 @@ export default function Dashboard() {
                       "&:hover": { bgcolor: "#fbfaf8" }
                     }}
                   >
+                    <span className="serial-pill">{index + 1}</span>
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontWeight: 760 }}>{contact.name}</Typography>
                       <Typography color="text.secondary" sx={{ fontSize: "0.82rem" }}>

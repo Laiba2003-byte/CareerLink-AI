@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -16,21 +16,25 @@ import {
   TableRow,
   Typography
 } from "@mui/material";
-import { ExternalLink, Search } from "lucide-react";
+import { ExternalLink, Search, Trash2 } from "lucide-react";
 import CandidateReviewTable from "../components/CandidateReviewTable.jsx";
+import ConfirmButton from "../components/ConfirmButton.jsx";
 import ContactDialog from "../components/ContactDialog.jsx";
 import ContactImportDialog from "../components/ContactImportDialog.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import StatusChip from "../components/StatusChip.jsx";
 import { api } from "../services/api.js";
+import { companyResearchLabel, hrDiscoveryLabel } from "../utils/companyStatus.js";
 import { formatDate, listText } from "../utils/format.js";
 
 export default function CompanyDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [company, setCompany] = useState(null);
   const [companies, setCompanies] = useState([]);
   const [busy, setBusy] = useState(false);
   const [discovering, setDiscovering] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
   async function load() {
@@ -77,6 +81,19 @@ export default function CompanyDetails() {
     }
   }
 
+  async function deleteCurrentCompany() {
+    setDeleting(true);
+    setError("");
+    try {
+      await api.delete(`/companies/${id}`);
+      navigate("/companies");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (!company && !error) {
     return <LinearProgress />;
   }
@@ -107,6 +124,17 @@ export default function CompanyDetails() {
         </Button>
         <ContactImportDialog companyId={id} onImported={load} />
         <ContactDialog companies={companies} defaultCompanyId={id} onCreated={load} />
+        <ConfirmButton
+          title="Delete company"
+          description={`Delete ${company?.name || "this company"} and its related contacts, candidates, interactions, and jobs?`}
+          color="error"
+          variant="outlined"
+          disabled={deleting}
+          startIcon={<Trash2 size={16} />}
+          onConfirm={deleteCurrentCompany}
+        >
+          Delete
+        </ConfirmButton>
       </PageHeader>
 
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
@@ -147,9 +175,14 @@ export default function CompanyDetails() {
                 </Box>
                 <Box>
                   <Typography className="section-title" sx={{ mb: 0.7 }}>
-                    HR discovery
+                    Status
                   </Typography>
-                  <span className="discovery-pill">{(company.discoveryStatus || "NEEDS_RESEARCH").replaceAll("_", " ")}</span>
+                  <Stack spacing={0.5} alignItems="flex-start">
+                    <span className="discovery-pill">{companyResearchLabel(company)}</span>
+                    <Typography color="text.secondary" sx={{ fontSize: "0.78rem" }}>
+                      {hrDiscoveryLabel(company)}
+                    </Typography>
+                  </Stack>
                 </Box>
               </Box>
 
@@ -244,6 +277,7 @@ export default function CompanyDetails() {
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell sx={{ width: 64 }}>Sr.</TableCell>
                     <TableCell>Contact</TableCell>
                     <TableCell>Match</TableCell>
                     <TableCell>Status</TableCell>
@@ -252,8 +286,9 @@ export default function CompanyDetails() {
                 </TableHead>
                 <TableBody>
                   {company.contacts?.length ? (
-                    company.contacts.map((contact) => (
+                    company.contacts.map((contact, index) => (
                       <TableRow key={contact.id} hover>
+                        <TableCell>{index + 1}</TableCell>
                         <TableCell>
                           <Typography sx={{ fontWeight: 740 }}>{contact.name}</Typography>
                           <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>
@@ -280,7 +315,7 @@ export default function CompanyDetails() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4}>
+                      <TableCell colSpan={5}>
                         <Box sx={{ py: 4, textAlign: "center" }}>
                           <Typography sx={{ fontWeight: 720 }}>No contacts yet.</Typography>
                           <Typography color="text.secondary" sx={{ mt: 0.4 }}>

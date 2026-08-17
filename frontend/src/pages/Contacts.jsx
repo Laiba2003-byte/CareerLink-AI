@@ -105,6 +105,7 @@ export default function Contacts() {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell sx={{ width: 64 }}>Sr.</TableCell>
               <TableCell>Contact</TableCell>
               <TableCell>Company</TableCell>
               <TableCell>Role</TableCell>
@@ -117,8 +118,9 @@ export default function Contacts() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {contacts.map((contact) => (
+            {contacts.map((contact, index) => (
               <TableRow key={contact.id} hover>
+                <TableCell>{index + 1}</TableCell>
                 <TableCell>
                   <Typography sx={{ fontWeight: 740 }}>{contact.name}</Typography>
                   <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>
@@ -145,7 +147,7 @@ export default function Contacts() {
             ))}
             {!contacts.length ? (
               <TableRow>
-                <TableCell colSpan={9}>
+                <TableCell colSpan={10}>
                   <Box sx={{ py: 5, textAlign: "center" }}>
                     <Typography sx={{ fontWeight: 720 }}>No contacts yet.</Typography>
                     <Typography color="text.secondary" sx={{ mt: 0.4 }}>

@@ -81,6 +81,7 @@ export default function CandidateReviewTable({ candidates = [], onChanged }) {
           <TableHead>
             <TableRow>
               <TableCell padding="checkbox" />
+              <TableCell sx={{ width: 64 }}>Sr.</TableCell>
               <TableCell>Candidate</TableCell>
               <TableCell>Contact</TableCell>
               <TableCell>Confidence</TableCell>
@@ -89,11 +90,12 @@ export default function CandidateReviewTable({ candidates = [], onChanged }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {candidates.map((candidate) => (
+            {candidates.map((candidate, index) => (
               <TableRow key={candidate.id} hover>
                 <TableCell padding="checkbox">
                   <Checkbox checked={selectedSet.has(candidate.id)} onChange={() => toggle(candidate.id)} />
                 </TableCell>
+                <TableCell>{index + 1}</TableCell>
                 <TableCell>
                   <Typography sx={{ fontWeight: 740 }}>{candidate.name}</Typography>
                   <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>

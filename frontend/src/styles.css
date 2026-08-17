@@ -57,6 +57,21 @@ a {
   padding: 3px 7px;
 }
 
+.serial-pill {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #dbe3ef;
+  border-radius: 5px;
+  color: #475467;
+  display: inline-flex;
+  font-size: 0.74rem;
+  font-weight: 760;
+  height: 24px;
+  justify-content: center;
+  min-width: 28px;
+  padding: 2px 6px;
+}
+
 .table-wrap {
   border: 1px solid #e5e7eb;
   border-radius: 6px;

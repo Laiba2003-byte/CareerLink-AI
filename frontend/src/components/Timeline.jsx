@@ -15,7 +15,8 @@ export default function Timeline({ interactions = [] }) {
         {interactions.length ? (
           <Stack spacing={0}>
             {interactions.map((interaction, index) => (
-              <Box key={interaction.id} sx={{ display: "grid", gridTemplateColumns: "92px 1fr", gap: 1.5 }}>
+              <Box key={interaction.id} sx={{ display: "grid", gridTemplateColumns: "38px 92px 1fr", gap: 1.5 }}>
+                <span className="serial-pill">{index + 1}</span>
                 <Typography color="text.secondary" sx={{ fontSize: "0.8rem", pt: 0.1 }}>
                   {formatDate(interaction.createdAt)}
                 </Typography>

@@ -18,11 +18,13 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { Globe2, Linkedin, Mail, Search, UsersRound } from "lucide-react";
+import { Globe2, Linkedin, Mail, Search, Trash2, UsersRound } from "lucide-react";
 import CompanyDialog from "../components/CompanyDialog.jsx";
+import ConfirmButton from "../components/ConfirmButton.jsx";
 import ImportDialog from "../components/ImportDialog.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import { api } from "../services/api.js";
+import { companyResearchLabel, hasCompanyResearch, hrDiscoveryLabel } from "../utils/companyStatus.js";
 import { formatDate } from "../utils/format.js";
 
 const filters = [
@@ -31,12 +33,6 @@ const filters = [
   { value: "hiring", label: "Hiring" },
   { value: "recent", label: "Recently Followed" }
 ];
-
-function researchStatus(company) {
-  if (company.discoveryStatus === "CANDIDATES_FOUND") return "HR candidates ready";
-  if (company.researchSummary || company.relevanceScore) return "Research ready";
-  return "Needs research";
-}
 
 function CompanyLinks({ company }) {
   const links = [
@@ -77,6 +73,7 @@ export default function Companies() {
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("match");
   const [busy, setBusy] = useState(false);
+  const [rowBusy, setRowBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -152,6 +149,37 @@ export default function Companies() {
     }
   }
 
+  async function researchOne(companyId) {
+    setRowBusy(`research-${companyId}`);
+    setError("");
+    setNotice("");
+    try {
+      await api.post(`/companies/${companyId}/research`);
+      setNotice("Company research updated.");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRowBusy("");
+    }
+  }
+
+  async function deleteCompany(company) {
+    setRowBusy(`delete-${company.id}`);
+    setError("");
+    setNotice("");
+    try {
+      await api.delete(`/companies/${company.id}`);
+      setSelected((current) => current.filter((item) => item !== company.id));
+      setNotice(`${company.name} deleted.`);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRowBusy("");
+    }
+  }
+
   return (
     <>
       <PageHeader title="Companies" subtitle={`${companies.length} companies in your CRM`}>
@@ -211,6 +239,7 @@ export default function Companies() {
                   onChange={toggleAll}
                 />
               </TableCell>
+              <TableCell sx={{ width: 64 }}>Sr.</TableCell>
               <TableCell>Company</TableCell>
               <TableCell>Links</TableCell>
               <TableCell>Followed</TableCell>
@@ -221,11 +250,12 @@ export default function Companies() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {sortedCompanies.map((company) => (
+            {sortedCompanies.map((company, index) => (
               <TableRow key={company.id} hover>
                 <TableCell padding="checkbox">
                   <Checkbox checked={selectedSet.has(company.id)} onChange={() => toggle(company.id)} />
                 </TableCell>
+                <TableCell>{index + 1}</TableCell>
                 <TableCell>
                   <Typography sx={{ fontWeight: 740 }}>{company.name}</Typography>
                   <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>
@@ -241,25 +271,51 @@ export default function Companies() {
                 </TableCell>
                 <TableCell>{contactCounts[company.id] || 0} contacts</TableCell>
                 <TableCell>
-                  <Stack spacing={0.5}>
-                    <Typography>{researchStatus(company)}</Typography>
-                    {company.discoveryStatus ? (
-                      <Typography color="text.secondary" sx={{ fontSize: "0.78rem" }}>
-                        {company.discoveryStatus.replaceAll("_", " ")}
-                      </Typography>
-                    ) : null}
+                  <Stack spacing={0.5} alignItems="flex-start">
+                    <Chip
+                      size="small"
+                      label={companyResearchLabel(company)}
+                      color={hasCompanyResearch(company) ? "success" : "warning"}
+                      variant={hasCompanyResearch(company) ? "filled" : "outlined"}
+                    />
+                    <Typography color="text.secondary" sx={{ fontSize: "0.78rem" }}>
+                      {hrDiscoveryLabel(company)}
+                    </Typography>
                   </Stack>
                 </TableCell>
                 <TableCell align="right">
-                  <Button component={Link} to={`/companies/${company.id}`} variant="outlined">
-                    Review
-                  </Button>
+                  <Stack direction="row" spacing={0.75} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
+                    {!hasCompanyResearch(company) ? (
+                      <Button
+                        variant="outlined"
+                        startIcon={<Search size={15} />}
+                        disabled={rowBusy === `research-${company.id}`}
+                        onClick={() => researchOne(company.id)}
+                      >
+                        Research
+                      </Button>
+                    ) : null}
+                    <Button component={Link} to={`/companies/${company.id}`} variant="outlined">
+                      Review
+                    </Button>
+                    <ConfirmButton
+                      title="Delete company"
+                      description={`Delete ${company.name} and its related contacts, candidates, interactions, and jobs?`}
+                      color="error"
+                      variant="text"
+                      disabled={rowBusy === `delete-${company.id}`}
+                      startIcon={<Trash2 size={15} />}
+                      onConfirm={() => deleteCompany(company)}
+                    >
+                      Delete
+                    </ConfirmButton>
+                  </Stack>
                 </TableCell>
               </TableRow>
             ))}
             {!sortedCompanies.length ? (
               <TableRow>
-                <TableCell colSpan={8}>
+                <TableCell colSpan={9}>
                   <Box sx={{ py: 5, textAlign: "center" }}>
                     <Typography sx={{ fontWeight: 720 }}>No companies found.</Typography>
                     <Typography color="text.secondary" sx={{ mt: 0.4 }}>

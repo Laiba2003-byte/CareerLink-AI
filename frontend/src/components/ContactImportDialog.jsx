@@ -102,6 +102,7 @@ export default function ContactImportDialog({ companyId = "", onImported }) {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
+                      <TableCell sx={{ width: 64 }}>Sr.</TableCell>
                       <TableCell>Name</TableCell>
                       <TableCell>Company</TableCell>
                       <TableCell>Role</TableCell>
@@ -109,8 +110,9 @@ export default function ContactImportDialog({ companyId = "", onImported }) {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {(summary.preview || []).map((row) => (
+                    {(summary.preview || []).map((row, index) => (
                       <TableRow key={`${row.row}-${row.email || row.name}`}>
+                        <TableCell>{index + 1}</TableCell>
                         <TableCell>{row.name}</TableCell>
                         <TableCell>{row.companyName}</TableCell>
                         <TableCell>{row.role}</TableCell>

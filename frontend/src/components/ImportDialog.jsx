@@ -102,6 +102,7 @@ export default function ImportDialog({ onImported }) {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
+                      <TableCell sx={{ width: 64 }}>Sr.</TableCell>
                       <TableCell>Organization</TableCell>
                       <TableCell>Followed On</TableCell>
                       <TableCell>Website</TableCell>
@@ -109,8 +110,9 @@ export default function ImportDialog({ onImported }) {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {(summary.preview || []).map((row) => (
+                    {(summary.preview || []).map((row, index) => (
                       <TableRow key={`${row.row}-${row.name}`}>
+                        <TableCell>{index + 1}</TableCell>
                         <TableCell>{row.name}</TableCell>
                         <TableCell>{formatDate(row.followedOn)}</TableCell>
                         <TableCell>{row.website || "Not provided"}</TableCell>
